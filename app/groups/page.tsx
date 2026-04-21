@@ -1,0 +1,123 @@
+import Link from "next/link";
+import { GroupCard } from "@/components/groups/group-card";
+import { getActivityGroups } from "@/lib/supabase/activity-groups";
+import { joinGroup } from "../supabase-test/actions";
+
+type GroupsPageProps = {
+  searchParams: Promise<{
+    error?: string | string[];
+    message?: string | string[];
+  }>;
+};
+
+function getSearchParamValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export const dynamic = "force-dynamic";
+
+export default async function GroupsPage({ searchParams }: GroupsPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const message = getSearchParamValue(resolvedSearchParams.message);
+  const joinError = getSearchParamValue(resolvedSearchParams.error);
+  const { error, groups } = await getActivityGroups();
+
+  return (
+    <main className="min-h-screen px-6 py-10 sm:px-8">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-3">
+            <Link
+              href="/"
+              className="text-sm font-medium text-emerald-700 hover:text-emerald-600"
+            >
+              Back to home
+            </Link>
+            <div className="space-y-2">
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+                Groups
+              </h1>
+              <p className="max-w-2xl text-sm leading-6 text-slate-600">
+                Browse activity groups from Supabase, including each group&apos;s
+                current size limit, and join one with the current temporary test
+                flow.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/create-group"
+            className="inline-flex items-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Create a Group
+          </Link>
+        </div>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="space-y-3">
+            {message && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {message}
+              </div>
+            )}
+
+            {joinError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {joinError}
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                Error: {error.message}
+              </div>
+            )}
+          </div>
+
+          {!error && groups.length === 0 && (
+            <div className="mt-4 rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">
+              No groups yet. Create the first one.
+            </div>
+          )}
+
+          {!error && groups.length > 0 && (
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {groups.map((group) => {
+                const isFull =
+                  group.max_members !== null &&
+                  group.current_member_count >= group.max_members;
+
+                return (
+                  <GroupCard
+                    key={group.id}
+                    group={group}
+                    href={`/groups/${group.id}`}
+                    actionSlot={
+                      <form action={joinGroup}>
+                        <input type="hidden" name="group_id" value={group.id} />
+                        <input type="hidden" name="redirect_to" value="/groups" />
+                        <input type="hidden" name="success_key" value="message" />
+                        <input type="hidden" name="error_key" value="error" />
+                        <button
+                          type="submit"
+                          disabled={isFull}
+                          className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                            isFull
+                              ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                              : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          Join Group
+                        </button>
+                      </form>
+                    }
+                  />
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
