@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { DisplayNameField } from "@/components/groups/display-name-field";
+import { getExistingTemporaryDisplayName } from "@/lib/server/temporary-user";
 import { GroupCard } from "@/components/groups/group-card";
 import { getActivityGroups } from "@/lib/supabase/activity-groups";
 import { joinGroup } from "../supabase-test/actions";
@@ -18,6 +20,7 @@ export const dynamic = "force-dynamic";
 
 export default async function GroupsPage({ searchParams }: GroupsPageProps) {
   const resolvedSearchParams = await searchParams;
+  const currentDisplayName = await getExistingTemporaryDisplayName();
   const message = getSearchParamValue(resolvedSearchParams.message);
   const joinError = getSearchParamValue(resolvedSearchParams.error);
   const { error, groups } = await getActivityGroups();
@@ -39,18 +42,26 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-slate-600">
                 Browse activity groups from Supabase, including each group&apos;s
-                current size limit, and join one with the current temporary test
-                flow.
+                current size limit, and join one with a simple saved display
+                name.
               </p>
             </div>
           </div>
 
-          <Link
-            href="/create-group"
-            className="inline-flex items-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            Create a Group
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/create-group"
+              className="inline-flex items-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Create a Group
+            </Link>
+          </div>
         </div>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -93,11 +104,15 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
                     group={group}
                     href={`/groups/${group.id}`}
                     actionSlot={
-                      <form action={joinGroup}>
+                      <form action={joinGroup} className="space-y-3">
                         <input type="hidden" name="group_id" value={group.id} />
                         <input type="hidden" name="redirect_to" value="/groups" />
                         <input type="hidden" name="success_key" value="message" />
                         <input type="hidden" name="error_key" value="error" />
+                        <DisplayNameField
+                          currentDisplayName={currentDisplayName}
+                          inputId={`group-display-name-${group.id}`}
+                        />
                         <button
                           type="submit"
                           disabled={isFull}

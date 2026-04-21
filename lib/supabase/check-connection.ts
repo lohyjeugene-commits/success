@@ -1,4 +1,4 @@
-import { createSupabaseClient } from "@/lib/supabase/client";
+import { createSupabaseServerClient } from "./server";
 
 type SupabaseConnectionResult = {
   connected: boolean;
@@ -24,7 +24,7 @@ function isExpectedMissingTableError(error: {
 
 export async function checkSupabaseConnection(): Promise<SupabaseConnectionResult> {
   try {
-    const supabase = createSupabaseClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from(TEST_TABLE_NAME)
       .select("*")

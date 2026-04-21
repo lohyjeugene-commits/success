@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { DisplayNameField } from "@/components/groups/display-name-field";
 import { GroupCard } from "@/components/groups/group-card";
 import { GroupForm } from "@/components/groups/group-form";
+import { getExistingTemporaryDisplayName } from "@/lib/server/temporary-user";
 import { getActivityGroups } from "@/lib/supabase/activity-groups";
 import { createGroup, joinGroup } from "./actions";
 
@@ -21,6 +23,7 @@ function getSearchParamValue(value: string | string[] | undefined) {
 
 export default async function Page({ searchParams }: SupabaseTestPageProps) {
   const resolvedSearchParams = await searchParams;
+  const currentDisplayName = await getExistingTemporaryDisplayName();
   const createMessage = getSearchParamValue(resolvedSearchParams.createMessage);
   const createError = getSearchParamValue(resolvedSearchParams.createError);
   const joinMessage = getSearchParamValue(resolvedSearchParams.joinMessage);
@@ -43,7 +46,8 @@ export default async function Page({ searchParams }: SupabaseTestPageProps) {
             </h1>
             <p className="text-sm leading-6 text-slate-600">
               Use this page to create a group in the `activity_groups` table and
-              immediately see the updated list below.
+              immediately see the updated list below. Joining groups now uses a
+              simple saved display name on top of the temporary member flow.
             </p>
           </div>
         </div>
@@ -115,9 +119,13 @@ export default async function Page({ searchParams }: SupabaseTestPageProps) {
                       key={group.id}
                       group={group}
                       href={`/groups/${group.id}`}
-                      actionSlot={
-                        <form action={joinGroup}>
+                    actionSlot={
+                        <form action={joinGroup} className="space-y-3">
                           <input type="hidden" name="group_id" value={group.id} />
+                          <DisplayNameField
+                            currentDisplayName={currentDisplayName}
+                            inputId={`supabase-test-display-name-${group.id}`}
+                          />
                           <button
                             type="submit"
                             disabled={isFull}

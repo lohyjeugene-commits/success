@@ -36,7 +36,8 @@ export default async function CreateGroupPage({
             </h1>
             <p className="max-w-2xl text-sm leading-6 text-slate-600">
               Add a new activity group to Supabase with the same working create
-              logic used in the test page.
+              logic used in the test page. You&apos;ll need to be logged in so
+              the app can store the group creator and admin permissions.
             </p>
           </div>
         </div>

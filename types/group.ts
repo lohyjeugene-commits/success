@@ -8,6 +8,7 @@ export type ActivityGroupRow = {
 };
 
 export type GroupMemberIdentifier = {
+  display_name: string;
   id: string;
   user_id: string;
 };
@@ -19,6 +20,6 @@ export type MeetupSlotRow = {
   ends_at: string;
   created_at: string;
   availability_count: number;
-  available_user_ids: string[];
+  available_display_names: string[];
   current_user_voted: boolean;
 };

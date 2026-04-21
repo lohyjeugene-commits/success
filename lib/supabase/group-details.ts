@@ -1,9 +1,11 @@
-import { createSupabaseClient } from "@/lib/supabase/client";
+import { createSupabaseServerClient } from "./server";
 import type {
   ActivityGroupRow,
   GroupMemberIdentifier,
   MeetupSlotRow,
 } from "@/types/group";
+import { isMissingColumnError, isMissingTableError } from "./errors";
+import { formatTemporaryUserLabel } from "@/lib/server/temporary-user";
 
 type GroupDetailsResult = {
   availabilityErrorMessage: string | null;
@@ -18,6 +20,7 @@ type GroupWithoutLimit = Omit<GroupBase, "max_members">;
 
 type GroupMemberWithUserId = {
   id: string;
+  name?: string | null;
   user_id: string | null;
 };
 
@@ -32,36 +35,23 @@ type GroupMemberIdOnly = {
 
 type MeetupSlotBase = Omit<
   MeetupSlotRow,
-  "availability_count" | "available_user_ids" | "current_user_voted"
+  "availability_count" | "available_display_names" | "current_user_voted"
 >;
 type AvailabilityVoteRow = {
+  auth_user_id?: string | null;
   slot_id: string;
   user_id: string | null;
 };
-
-function isMissingColumnError(
-  error: { code?: string; message?: string },
-  columnName: string,
-) {
-  const message = error.message?.toLowerCase() ?? "";
-  const lowerColumnName = columnName.toLowerCase();
-
-  return (
-    error.code === "42703" ||
-    (message.includes(lowerColumnName) &&
-      (message.includes("column") || message.includes("schema cache")))
-  );
-}
 
 async function getGroupMembers(groupId: string): Promise<{
   errorMessage: string | null;
   members: GroupMemberIdentifier[];
 }> {
-  const supabase = createSupabaseClient();
+  const supabase = await createSupabaseServerClient();
 
   const withUserIdResult = await supabase
     .from("group_members")
-    .select("id, user_id")
+    .select("id, user_id, name")
     .eq("group_id", groupId);
 
   if (!withUserIdResult.error) {
@@ -69,6 +59,7 @@ async function getGroupMembers(groupId: string): Promise<{
       errorMessage: null,
       members: ((withUserIdResult.data ?? []) as GroupMemberWithUserId[]).map(
         (member) => ({
+          display_name: formatTemporaryUserLabel(member.user_id, member.name),
           id: member.id,
           user_id: member.user_id || member.id,
         }),
@@ -93,8 +84,9 @@ async function getGroupMembers(groupId: string): Promise<{
       errorMessage: null,
       members: ((withNameResult.data ?? []) as GroupMemberWithName[]).map(
         (member) => ({
+          display_name: formatTemporaryUserLabel(member.id, member.name),
           id: member.id,
-          user_id: member.name || member.id,
+          user_id: member.id,
         }),
       ),
     };
@@ -122,21 +114,11 @@ async function getGroupMembers(groupId: string): Promise<{
   return {
     errorMessage: null,
     members: ((idOnlyResult.data ?? []) as GroupMemberIdOnly[]).map((member) => ({
+      display_name: formatTemporaryUserLabel(member.id, null),
       id: member.id,
       user_id: member.id,
     })),
   };
-}
-
-function isMissingTableError(error: { code?: string; message?: string }) {
-  const message = error.message?.toLowerCase() ?? "";
-
-  return (
-    error.code === "42P01" ||
-    error.code === "PGRST205" ||
-    message.includes("does not exist") ||
-    message.includes("could not find the table")
-  );
 }
 
 async function getMeetupSlots(
@@ -146,7 +128,7 @@ async function getMeetupSlots(
   errorMessage: string | null;
   slots: MeetupSlotRow[];
 }> {
-  const supabase = createSupabaseClient();
+  const supabase = await createSupabaseServerClient();
   const slotResult = await supabase
     .from("meetup_slots")
     .select("id, group_id, starts_at, ends_at, created_at")
@@ -176,7 +158,7 @@ async function getMeetupSlots(
   const slotIds = slots.map((slot) => slot.id);
   const voteResult = await supabase
     .from("availability_votes")
-    .select("slot_id, user_id")
+    .select("slot_id, user_id, auth_user_id")
     .in("slot_id", slotIds);
 
   if (voteResult.error) {
@@ -189,7 +171,7 @@ async function getMeetupSlots(
       slots: slots.map((slot) => ({
         ...slot,
         availability_count: 0,
-        available_user_ids: [],
+        available_display_names: [],
         current_user_voted: false,
       })),
     };
@@ -206,7 +188,10 @@ async function getMeetupSlots(
     const existingUserIds = userIdsBySlot.get(vote.slot_id) ?? [];
     userIdsBySlot.set(vote.slot_id, [...existingUserIds, userId]);
 
-    if (currentUserId && vote.user_id === currentUserId) {
+    if (
+      currentUserId &&
+      (vote.auth_user_id === currentUserId || vote.user_id === currentUserId)
+    ) {
       currentUserVotes.add(vote.slot_id);
     }
   }
@@ -216,7 +201,7 @@ async function getMeetupSlots(
     slots: slots.map((slot) => ({
       ...slot,
       availability_count: voteCounts.get(slot.id) ?? 0,
-      available_user_ids: userIdsBySlot.get(slot.id) ?? [],
+      available_display_names: userIdsBySlot.get(slot.id) ?? [],
       current_user_voted: currentUserVotes.has(slot.id),
     })),
   };
@@ -226,7 +211,7 @@ async function getGroupBase(groupId: string): Promise<{
   errorMessage: string | null;
   group: GroupBase | null;
 }> {
-  const supabase = createSupabaseClient();
+  const supabase = await createSupabaseServerClient();
 
   const withLimitResult = await supabase
     .from("activity_groups")
@@ -311,12 +296,21 @@ export async function getGroupDetails(
     ...groupResult.group,
     current_member_count: memberResult.members.length,
   };
+  const displayNamesByUserId = new Map(
+    memberResult.members.map((member) => [member.user_id, member.display_name]),
+  );
+  const slotsWithDisplayNames = slotResult.slots.map((slot) => ({
+    ...slot,
+    available_display_names: slot.available_display_names.map((userId) =>
+      displayNamesByUserId.get(userId) ?? formatTemporaryUserLabel(userId, null),
+    ),
+  }));
 
   return {
     availabilityErrorMessage: slotResult.errorMessage,
     errorMessage: memberResult.errorMessage,
     group,
     members: memberResult.members,
-    slots: slotResult.slots,
+    slots: slotsWithDisplayNames,
   };
 }

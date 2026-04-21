@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { joinGroup } from "@/app/supabase-test/actions";
-import { getExistingTemporaryUserId } from "@/lib/server/temporary-user";
+import { DisplayNameField } from "@/components/groups/display-name-field";
+import {
+  getExistingTemporaryDisplayName,
+  getExistingTemporaryUserId,
+} from "@/lib/server/temporary-user";
 import { getGroupDetails } from "@/lib/supabase/group-details";
 import { createMeetupSlot, voteAvailability } from "./actions";
 
@@ -28,6 +32,7 @@ export default async function GroupDetailsPage({
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const currentUserId = await getExistingTemporaryUserId();
+  const currentDisplayName = await getExistingTemporaryDisplayName();
   const message = getSearchParamValue(resolvedSearchParams.message);
   const joinError = getSearchParamValue(resolvedSearchParams.error);
   const { availabilityErrorMessage, errorMessage, group, members, slots } =
@@ -167,7 +172,8 @@ export default async function GroupDetailsPage({
                       Join this group
                     </p>
                     <p className="text-sm text-slate-600">
-                      Use the current temporary test flow to reserve your spot.
+                      Join with a simple display name. We&apos;ll remember it on
+                      later visits.
                     </p>
                   </div>
 
@@ -180,6 +186,12 @@ export default async function GroupDetailsPage({
                     />
                     <input type="hidden" name="success_key" value="message" />
                     <input type="hidden" name="error_key" value="error" />
+                    <div className="mb-3 min-w-[240px]">
+                      <DisplayNameField
+                        currentDisplayName={currentDisplayName}
+                        inputId={`join-display-name-${group.id}`}
+                      />
+                    </div>
                     <button
                       type="submit"
                       disabled={Boolean(isFull)}
@@ -282,18 +294,18 @@ export default async function GroupDetailsPage({
                             Available now
                           </p>
 
-                          {slot.available_user_ids.length === 0 ? (
+                          {slot.available_display_names.length === 0 ? (
                             <p className="mt-3 text-sm text-slate-500">
                               No one has marked this slot yet.
                             </p>
                           ) : (
                             <div className="mt-3 flex flex-wrap gap-2">
-                              {slot.available_user_ids.map((userId) => (
+                              {slot.available_display_names.map((displayName) => (
                                 <span
-                                  key={`${slot.id}-${userId}`}
+                                  key={`${slot.id}-${displayName}`}
                                   className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700"
                                 >
-                                  {formatAvailabilityUser(userId)}
+                                  {displayName}
                                 </span>
                               ))}
                             </div>
@@ -313,6 +325,12 @@ export default async function GroupDetailsPage({
                               name="redirect_to"
                               value={`/groups/${group.id}`}
                             />
+                            <div className="mb-3 min-w-[240px]">
+                              <DisplayNameField
+                                currentDisplayName={currentDisplayName}
+                                inputId={`vote-display-name-${slot.id}`}
+                              />
+                            </div>
                             <button
                               type="submit"
                               disabled={slot.current_user_voted}
@@ -339,7 +357,8 @@ export default async function GroupDetailsPage({
                   Add a Meetup Slot
                 </h2>
                 <p className="text-sm text-slate-600">
-                  Propose a time so members can coordinate availability.
+                  Group creators and admins can propose a time so members can
+                  coordinate availability.
                 </p>
               </div>
 
@@ -424,7 +443,7 @@ export default async function GroupDetailsPage({
                       key={member.id}
                       className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700"
                     >
-                      {member.user_id}
+                      {member.display_name}
                     </span>
                   ))}
                 </div>
@@ -443,20 +462,6 @@ function formatSlotDateTime(value: string) {
     timeStyle: "short",
     timeZone: "Asia/Singapore",
   }).format(new Date(value));
-}
-
-function formatAvailabilityUser(userId: string) {
-  const trimmedUserId = userId.trim();
-
-  if (!trimmedUserId) {
-    return "User unknown";
-  }
-
-  if (trimmedUserId.toLowerCase() === "unknown user") {
-    return "User unknown";
-  }
-
-  return `User ${trimmedUserId.slice(-4)}`;
 }
 
 function getJoinButtonClasses(isDisabled: boolean) {

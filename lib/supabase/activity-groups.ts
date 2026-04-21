@@ -1,6 +1,6 @@
 import type { PostgrestError } from "@supabase/supabase-js";
-import { createSupabaseClient } from "@/lib/supabase/client";
 import type { ActivityGroupRow } from "@/types/group";
+import { createSupabaseServerClient } from "./server";
 
 type ActivityGroupsResult = {
   error: PostgrestError | null;
@@ -43,7 +43,7 @@ function addMemberCounts(
 }
 
 export async function getActivityGroups(): Promise<ActivityGroupsResult> {
-  const supabase = createSupabaseClient();
+  const supabase = await createSupabaseServerClient();
 
   const withLimitResult = await supabase
     .from("activity_groups")

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 type SupabaseEnvironment = {
   keySource:
@@ -41,5 +41,5 @@ export function getSupabaseEnvironment(): SupabaseEnvironment {
 export function createSupabaseClient() {
   const { supabaseKey, supabaseUrl } = getSupabaseEnvironment();
 
-  return createClient(supabaseUrl, supabaseKey);
+  return createBrowserClient(supabaseUrl, supabaseKey);
 }

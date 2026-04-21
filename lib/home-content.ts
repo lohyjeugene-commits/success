@@ -2,19 +2,19 @@ import type { ActivityGroup, LaunchStep } from "@/types/home";
 
 export const launchSteps: LaunchStep[] = [
   {
-    title: "Create a meetup",
+    title: "Create or join a small activity group",
     description:
-      "A host picks the activity, neighbourhood, date, and a small maximum group size.",
+      "Hosts can start a group with a title, activity type, area, and small member limit, while others can browse and join open spots.",
   },
   {
-    title: "Let people join",
+    title: "Propose meetup times",
     description:
-      "Users browse what is happening nearby and claim one of the limited spots.",
+      "Inside each group, meetup slots can be added so everyone has a few clear time options to choose from.",
   },
   {
-    title: "Chat before meeting",
+    title: "Vote when you are available",
     description:
-      "A simple group chat keeps logistics in one place before everyone meets offline.",
+      "Members can mark themselves available for the slots that work best and quickly see the most popular timing.",
   },
 ];
 
