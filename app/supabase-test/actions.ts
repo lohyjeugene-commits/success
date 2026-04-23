@@ -446,6 +446,7 @@ export async function joinGroup(formData: FormData) {
   const groupId = getTextValue(formData, "group_id");
   const providedDisplayName = getTextValue(formData, "display_name");
   const guestDisplayName = providedDisplayName || "Anonymous";
+
   const { errorKey, redirectTo, successKey } = getRedirectConfig(formData, {
     errorKey: "joinError",
     redirectTo: "/supabase-test",
@@ -456,88 +457,63 @@ export async function joinGroup(formData: FormData) {
     redirect(buildRedirectUrl(redirectTo, errorKey, "Missing group id."));
   }
 
-  const authenticatedUser = await getAuthenticatedUser();
-  let memberIdentity: MemberIdentity;
+  const supabase = createSupabaseClient();
 
-  if (authenticatedUser) {
-    memberIdentity = {
-      authUserId: authenticatedUser.id,
-      displayName: getDisplayNameForUser(authenticatedUser),
-      userId: authenticatedUser.id,
-    };
-  } else {
-    const identity = await getOrCreateTemporaryIdentity(providedDisplayName);
+  const userId = crypto.randomUUID();
 
-    if (identity.missingDisplayName || !identity.displayName) {
-      redirect(
-        buildRedirectUrl(
-          redirectTo,
-          errorKey,
-          "Please choose a display name before joining a group.",
-        ),
-      );
-    }
+const existingMembership = await supabase
+  .from("group_members")
+  .select("id")
+  .eq("group_id", groupId)
+  .eq("display_name", guestDisplayName);
 
-    memberIdentity = {
-      authUserId: null,
-      displayName: guestDisplayName,
-      userId: identity.temporaryUserId,
-    };
-  }
-
-  const capacityState = await getGroupCapacityState(groupId, memberIdentity);
-
-  if (capacityState.errorMessage) {
-    redirect(buildRedirectUrl(redirectTo, errorKey, capacityState.errorMessage));
-  }
-
-  if (capacityState.alreadyJoined) {
-    redirect(buildRedirectUrl(redirectTo, errorKey, "You already joined this group"));
-  }
-
-  if (
-    capacityState.maxMembers !== null &&
-    capacityState.memberCount >= capacityState.maxMembers
-  ) {
-    redirect(
-      buildRedirectUrl(
-        redirectTo,
-        errorKey,
-        "Could not join group: this group is already full.",
-      ),
-    );
-  }
-
-  const membershipInsertResult = await insertGroupMember(
-    capacityState.supabase,
-    groupId,
-    memberIdentity,
-    "member",
+if (existingMembership.error) {
+  redirect(
+    buildRedirectUrl(
+      redirectTo,
+      errorKey,
+      `Could not check existing membership: ${existingMembership.error.message}`,
+    ),
   );
+}
 
-  if (membershipInsertResult.error && isUniqueViolationError(membershipInsertResult.error)) {
-    redirect(buildRedirectUrl(redirectTo, errorKey, "You already joined this group"));
-  }
+if ((existingMembership.data ?? []).length > 0) {
+  redirect(
+    buildRedirectUrl(
+      redirectTo,
+      successKey,
+      "You already joined this group",
+    ),
+  );
+}
 
-  if (membershipInsertResult.error) {
-    if (
-      !authenticatedUser &&
-      isPermissionDeniedError(membershipInsertResult.error)
-    ) {
-      await requireAuthenticatedUser({
-        message: "Please log in to join groups once the auth migration is installed.",
-        returnTo: redirectTo,
-      });
-    }
+  const { error } = await supabase.from("group_members").insert([
+    {
+      group_id: groupId,
+      user_id: userId,
+      display_name: guestDisplayName,
+      role: "member",
+    },
+  ]);
 
+  if (error) {
     redirect(
       buildRedirectUrl(
         redirectTo,
         errorKey,
-        `Could not join group: ${membershipInsertResult.error.message}`,
+        `Could not join group: ${error.message}`,
       ),
     );
   }
+
+  revalidatePath("/supabase-test");
+  revalidatePath("/groups");
+  revalidatePath("/dashboard");
+
+  redirect(
+    buildRedirectUrl(redirectTo, successKey, "Joined group successfully"),
+  );
+}
 
   const warnings: string[] = [];
 
