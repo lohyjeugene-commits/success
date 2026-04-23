@@ -6,6 +6,10 @@ import {
   getExistingTemporaryDisplayName,
   getExistingTemporaryUserId,
 } from "@/lib/server/temporary-user";
+import {
+  getAuthenticatedUser,
+  getDisplayNameForUser,
+} from "@/lib/supabase/auth";
 import { getGroupDetails } from "@/lib/supabase/group-details";
 import { createMeetupSlot, voteAvailability } from "./actions";
 
@@ -31,8 +35,13 @@ export default async function GroupDetailsPage({
 }: GroupDetailsPageProps) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
-  const currentUserId = await getExistingTemporaryUserId();
-  const currentDisplayName = await getExistingTemporaryDisplayName();
+  const authenticatedUser = await getAuthenticatedUser();
+  const temporaryUserId = await getExistingTemporaryUserId();
+  const temporaryDisplayName = await getExistingTemporaryDisplayName();
+  const currentUserId = authenticatedUser?.id ?? temporaryUserId;
+  const currentDisplayName = authenticatedUser
+    ? getDisplayNameForUser(authenticatedUser)
+    : temporaryDisplayName;
   const message = getSearchParamValue(resolvedSearchParams.message);
   const joinError = getSearchParamValue(resolvedSearchParams.error);
   const { availabilityErrorMessage, errorMessage, group, members, slots } =
@@ -424,7 +433,8 @@ export default async function GroupDetailsPage({
                     Members
                   </h2>
                   <p className="text-sm text-slate-600">
-                    Showing each member identifier from `group_members`.
+                    Showing each member display name from{" "}
+                    <code>group_members</code>.
                   </p>
                 </div>
                 <div className="text-sm font-medium text-slate-500">
@@ -441,7 +451,7 @@ export default async function GroupDetailsPage({
                   {members.map((member) => (
                     <span
                       key={member.id}
-                      className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700"
+                      className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700"
                     >
                       {member.display_name}
                     </span>

@@ -3,6 +3,10 @@ import { DisplayNameField } from "@/components/groups/display-name-field";
 import { GroupCard } from "@/components/groups/group-card";
 import { GroupForm } from "@/components/groups/group-form";
 import { getExistingTemporaryDisplayName } from "@/lib/server/temporary-user";
+import {
+  getAuthenticatedUser,
+  getDisplayNameForUser,
+} from "@/lib/supabase/auth";
 import { getActivityGroups } from "@/lib/supabase/activity-groups";
 import { createGroup, joinGroup } from "./actions";
 
@@ -23,7 +27,11 @@ function getSearchParamValue(value: string | string[] | undefined) {
 
 export default async function Page({ searchParams }: SupabaseTestPageProps) {
   const resolvedSearchParams = await searchParams;
-  const currentDisplayName = await getExistingTemporaryDisplayName();
+  const authenticatedUser = await getAuthenticatedUser();
+  const temporaryDisplayName = await getExistingTemporaryDisplayName();
+  const currentDisplayName = authenticatedUser
+    ? getDisplayNameForUser(authenticatedUser)
+    : temporaryDisplayName;
   const createMessage = getSearchParamValue(resolvedSearchParams.createMessage);
   const createError = getSearchParamValue(resolvedSearchParams.createError);
   const joinMessage = getSearchParamValue(resolvedSearchParams.joinMessage);

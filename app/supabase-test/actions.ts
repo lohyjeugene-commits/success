@@ -3,16 +3,27 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getDisplayNameForUser, requireAuthenticatedUser } from "@/lib/supabase/auth";
+import {
+  getAuthenticatedUser,
+  getDisplayNameForUser,
+  requireAuthenticatedUser,
+} from "@/lib/supabase/auth";
 import {
   isMissingColumnError,
   isMissingMaxMembersError,
+  isPermissionDeniedError,
   isUniqueViolationError,
 } from "@/lib/supabase/errors";
 import { getOrCreateTemporaryIdentity } from "@/lib/server/temporary-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const allowedMaxMembers = new Set(["2", "3", "4", "5", "6", "8", "10"]);
+
+type MemberIdentity = {
+  authUserId: string | null;
+  displayName: string;
+  userId: string;
+};
 
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -60,48 +71,53 @@ function getAuthMigrationHintMessage() {
 async function getExistingMembershipState(
   supabase: SupabaseClient,
   groupId: string,
-  temporaryUserId: string,
+  identity: Pick<MemberIdentity, "authUserId" | "userId">,
 ) {
+  if (identity.authUserId) {
+    const withAuthUserIdResult = await supabase
+      .from("group_members")
+      .select("id", { count: "exact", head: true })
+      .eq("group_id", groupId)
+      .eq("auth_user_id", identity.authUserId);
+
+    if (!withAuthUserIdResult.error) {
+      return {
+        alreadyJoined: (withAuthUserIdResult.count ?? 0) > 0,
+        errorMessage: null,
+      };
+    }
+
+    if (!isMissingColumnError(withAuthUserIdResult.error, "auth_user_id")) {
+      return {
+        alreadyJoined: false,
+        errorMessage: `Could not check existing membership: ${withAuthUserIdResult.error.message}`,
+      };
+    }
+  }
+
   const withUserIdResult = await supabase
     .from("group_members")
     .select("id", { count: "exact", head: true })
     .eq("group_id", groupId)
-    .eq("user_id", temporaryUserId);
+    .eq("user_id", identity.userId);
 
-  if (!withUserIdResult.error) {
-    return {
-      alreadyJoined: (withUserIdResult.count ?? 0) > 0,
-      errorMessage: null,
-    };
-  }
-
-  if (!isMissingColumnError(withUserIdResult.error, "user_id")) {
+  if (withUserIdResult.error && !isMissingColumnError(withUserIdResult.error, "user_id")) {
     return {
       alreadyJoined: false,
       errorMessage: `Could not check existing membership: ${withUserIdResult.error.message}`,
     };
   }
 
-  const fallbackResult = await supabase
-    .from("group_members")
-    .select("id", { count: "exact", head: true })
-    .eq("group_id", groupId)
-    .eq("name", temporaryUserId);
-
-  if (fallbackResult.error) {
-    return {
-      alreadyJoined: false,
-      errorMessage: `Could not check existing membership: ${fallbackResult.error.message}`,
-    };
-  }
-
   return {
-    alreadyJoined: (fallbackResult.count ?? 0) > 0,
+    alreadyJoined: (withUserIdResult.count ?? 0) > 0,
     errorMessage: null,
   };
 }
 
-async function getGroupCapacityState(groupId: string, temporaryUserId: string) {
+async function getGroupCapacityState(
+  groupId: string,
+  identity: Pick<MemberIdentity, "authUserId" | "userId">,
+) {
   const supabase = await createSupabaseServerClient();
   let maxMembers: number | null = null;
 
@@ -159,7 +175,7 @@ async function getGroupCapacityState(groupId: string, temporaryUserId: string) {
   const membershipState = await getExistingMembershipState(
     supabase,
     groupId,
-    temporaryUserId,
+    identity,
   );
 
   if (membershipState.errorMessage) {
@@ -184,22 +200,29 @@ async function getGroupCapacityState(groupId: string, temporaryUserId: string) {
 async function insertGroupMember(
   supabase: SupabaseClient,
   groupId: string,
-  temporaryUserId: string,
-  displayName: string,
+  identity: MemberIdentity,
   role: "creator" | "member",
 ) {
   const insertPayload: {
+    auth_user_id?: string;
+    display_name?: string;
     group_id: string;
     name?: string;
     role?: string;
     user_id?: string;
   } = {
+    display_name: identity.displayName || "Anonymous",
     group_id: groupId,
-    name: displayName,
+    name: identity.displayName,
     role,
-    user_id: temporaryUserId,
+    user_id: identity.userId,
   };
 
+  if (identity.authUserId) {
+    insertPayload.auth_user_id = identity.authUserId;
+  }
+
+  let missingAuthUserId = false;
   let missingRole = false;
 
   while (true) {
@@ -208,8 +231,15 @@ async function insertGroupMember(
     if (!insertResult.error) {
       return {
         error: null,
+        missingAuthUserId,
         missingRole,
       };
+    }
+
+    if (isMissingColumnError(insertResult.error, "auth_user_id")) {
+      delete insertPayload.auth_user_id;
+      missingAuthUserId = true;
+      continue;
     }
 
     if (isMissingColumnError(insertResult.error, "role")) {
@@ -223,6 +253,11 @@ async function insertGroupMember(
       continue;
     }
 
+    if (isMissingColumnError(insertResult.error, "display_name")) {
+      delete insertPayload.display_name;
+      continue;
+    }
+
     if (isMissingColumnError(insertResult.error, "user_id")) {
       delete insertPayload.user_id;
       continue;
@@ -230,6 +265,7 @@ async function insertGroupMember(
 
     return {
       error: insertResult.error,
+      missingAuthUserId,
       missingRole,
     };
   }
@@ -346,8 +382,11 @@ export async function createGroup(formData: FormData) {
   const membershipInsertResult = await insertGroupMember(
     supabase,
     groupInsertResult.groupId,
-    user.id,
-    getDisplayNameForUser(user),
+    {
+      authUserId: user.id,
+      displayName: getDisplayNameForUser(user),
+      userId: user.id,
+    },
     "creator",
   );
 
@@ -362,6 +401,10 @@ export async function createGroup(formData: FormData) {
   }
 
   const warnings: string[] = [];
+  const needsAuthMigrationHint =
+    groupInsertResult.missingCreatorUserId ||
+    membershipInsertResult.missingAuthUserId ||
+    membershipInsertResult.missingRole;
 
   if (groupInsertResult.missingMaxMembers) {
     warnings.push(
@@ -375,15 +418,21 @@ export async function createGroup(formData: FormData) {
     );
   }
 
-  if (membershipInsertResult.missingRole) {
+  if (membershipInsertResult.missingAuthUserId) {
     warnings.push(
-      `group member role columns are missing. ${getAuthMigrationHintMessage()}`,
+      "authenticated member tracking was not saved because auth_user_id is missing.",
     );
+  }
+
+  if (membershipInsertResult.missingRole) {
+    warnings.push("group member role columns are missing.");
   }
 
   const successMessage =
     warnings.length > 0
-      ? `Group created with fallback mode: ${warnings.join(" ")}`
+      ? `Group created with fallback mode: ${warnings.join(" ")}${
+          needsAuthMigrationHint ? ` ${getAuthMigrationHintMessage()}` : ""
+        }`
       : "Group created successfully.";
 
   revalidatePath("/supabase-test");
@@ -396,6 +445,7 @@ export async function createGroup(formData: FormData) {
 export async function joinGroup(formData: FormData) {
   const groupId = getTextValue(formData, "group_id");
   const providedDisplayName = getTextValue(formData, "display_name");
+  const guestDisplayName = providedDisplayName || "Anonymous";
   const { errorKey, redirectTo, successKey } = getRedirectConfig(formData, {
     errorKey: "joinError",
     redirectTo: "/supabase-test",
@@ -406,19 +456,36 @@ export async function joinGroup(formData: FormData) {
     redirect(buildRedirectUrl(redirectTo, errorKey, "Missing group id."));
   }
 
-  const identity = await getOrCreateTemporaryIdentity(providedDisplayName);
+  const authenticatedUser = await getAuthenticatedUser();
+  let memberIdentity: MemberIdentity;
 
-  if (identity.missingDisplayName || !identity.displayName) {
-    redirect(
-      buildRedirectUrl(
-        redirectTo,
-        errorKey,
-        "Please choose a display name before joining a group.",
-      ),
-    );
+  if (authenticatedUser) {
+    memberIdentity = {
+      authUserId: authenticatedUser.id,
+      displayName: getDisplayNameForUser(authenticatedUser),
+      userId: authenticatedUser.id,
+    };
+  } else {
+    const identity = await getOrCreateTemporaryIdentity(providedDisplayName);
+
+    if (identity.missingDisplayName || !identity.displayName) {
+      redirect(
+        buildRedirectUrl(
+          redirectTo,
+          errorKey,
+          "Please choose a display name before joining a group.",
+        ),
+      );
+    }
+
+    memberIdentity = {
+      authUserId: null,
+      displayName: guestDisplayName,
+      userId: identity.temporaryUserId,
+    };
   }
 
-  const capacityState = await getGroupCapacityState(groupId, identity.temporaryUserId);
+  const capacityState = await getGroupCapacityState(groupId, memberIdentity);
 
   if (capacityState.errorMessage) {
     redirect(buildRedirectUrl(redirectTo, errorKey, capacityState.errorMessage));
@@ -444,8 +511,7 @@ export async function joinGroup(formData: FormData) {
   const membershipInsertResult = await insertGroupMember(
     capacityState.supabase,
     groupId,
-    identity.temporaryUserId,
-    identity.displayName,
+    memberIdentity,
     "member",
   );
 
@@ -454,6 +520,16 @@ export async function joinGroup(formData: FormData) {
   }
 
   if (membershipInsertResult.error) {
+    if (
+      !authenticatedUser &&
+      isPermissionDeniedError(membershipInsertResult.error)
+    ) {
+      await requireAuthenticatedUser({
+        message: "Please log in to join groups once the auth migration is installed.",
+        returnTo: redirectTo,
+      });
+    }
+
     redirect(
       buildRedirectUrl(
         redirectTo,
@@ -463,9 +539,22 @@ export async function joinGroup(formData: FormData) {
     );
   }
 
-  const successMessage = membershipInsertResult.missingRole
-    ? `Joined group successfully, but the role column is missing. ${getAuthMigrationHintMessage()}`
-    : "Joined group successfully.";
+  const warnings: string[] = [];
+
+  if (membershipInsertResult.missingAuthUserId) {
+    warnings.push(
+      "authenticated member tracking was not saved because auth_user_id is missing.",
+    );
+  }
+
+  if (membershipInsertResult.missingRole) {
+    warnings.push("the role column is missing.");
+  }
+
+  const successMessage =
+    warnings.length > 0
+      ? `Joined group successfully, but ${warnings.join(" ")} ${getAuthMigrationHintMessage()}`
+      : "Joined group successfully.";
 
   revalidatePath("/supabase-test");
   revalidatePath("/groups");

@@ -18,15 +18,11 @@ type GroupDetailsResult = {
 type GroupBase = Omit<ActivityGroupRow, "current_member_count">;
 type GroupWithoutLimit = Omit<GroupBase, "max_members">;
 
-type GroupMemberWithUserId = {
+type GroupMemberRow = {
   id: string;
+  display_name?: string | null;
   name?: string | null;
   user_id: string | null;
-};
-
-type GroupMemberWithName = {
-  id: string;
-  name: string | null;
 };
 
 type GroupMemberIdOnly = {
@@ -37,11 +33,50 @@ type MeetupSlotBase = Omit<
   MeetupSlotRow,
   "availability_count" | "available_display_names" | "current_user_voted"
 >;
+
 type AvailabilityVoteRow = {
   auth_user_id?: string | null;
   slot_id: string;
   user_id: string | null;
 };
+
+function getResolvedMemberDisplayName(
+  userId: string | null | undefined,
+  ...candidateDisplayNames: Array<string | null | undefined>
+) {
+  for (const candidateDisplayName of candidateDisplayNames) {
+    const normalizedDisplayName = candidateDisplayName?.trim();
+
+    if (normalizedDisplayName) {
+      return normalizedDisplayName;
+    }
+  }
+
+  return formatTemporaryUserLabel(userId, null);
+}
+
+function isMissingAnyColumnError(
+  error: Parameters<typeof isMissingColumnError>[0],
+  columns: string[],
+) {
+  return columns.some((column) => isMissingColumnError(error, column));
+}
+
+function mapGroupMembers(rows: GroupMemberRow[]) {
+  return rows.map((member) => {
+    const resolvedUserId = member.user_id || member.id;
+
+    return {
+      display_name: getResolvedMemberDisplayName(
+        resolvedUserId,
+        member.display_name,
+        member.name,
+      ),
+      id: member.id,
+      user_id: resolvedUserId,
+    };
+  });
+}
 
 async function getGroupMembers(groupId: string): Promise<{
   errorMessage: string | null;
@@ -49,50 +84,77 @@ async function getGroupMembers(groupId: string): Promise<{
 }> {
   const supabase = await createSupabaseServerClient();
 
-  const withUserIdResult = await supabase
+  const withAllNameColumnsResult = await supabase
     .from("group_members")
-    .select("id, user_id, name")
+    .select("id, user_id, display_name, name")
     .eq("group_id", groupId);
 
-  if (!withUserIdResult.error) {
+  if (!withAllNameColumnsResult.error) {
     return {
       errorMessage: null,
-      members: ((withUserIdResult.data ?? []) as GroupMemberWithUserId[]).map(
-        (member) => ({
-          display_name: formatTemporaryUserLabel(member.user_id, member.name),
-          id: member.id,
-          user_id: member.user_id || member.id,
-        }),
+      members: mapGroupMembers(
+        (withAllNameColumnsResult.data ?? []) as GroupMemberRow[],
       ),
     };
   }
 
-  if (!isMissingColumnError(withUserIdResult.error, "user_id")) {
+  if (
+    !isMissingAnyColumnError(withAllNameColumnsResult.error, [
+      "display_name",
+      "name",
+      "user_id",
+    ])
+  ) {
     return {
-      errorMessage: `Could not load group members: ${withUserIdResult.error.message}`,
+      errorMessage: `Could not load group members: ${withAllNameColumnsResult.error.message}`,
+      members: [],
+    };
+  }
+
+  const withDisplayNameResult = await supabase
+    .from("group_members")
+    .select("id, user_id, display_name")
+    .eq("group_id", groupId);
+
+  if (!withDisplayNameResult.error) {
+    return {
+      errorMessage: null,
+      members: mapGroupMembers(
+        (withDisplayNameResult.data ?? []) as GroupMemberRow[],
+      ),
+    };
+  }
+
+  if (
+    !isMissingAnyColumnError(withDisplayNameResult.error, [
+      "display_name",
+      "user_id",
+    ])
+  ) {
+    return {
+      errorMessage: `Could not load group members: ${withDisplayNameResult.error.message}`,
       members: [],
     };
   }
 
   const withNameResult = await supabase
     .from("group_members")
-    .select("id, name")
+    .select("id, user_id, name")
     .eq("group_id", groupId);
 
   if (!withNameResult.error) {
     return {
       errorMessage: null,
-      members: ((withNameResult.data ?? []) as GroupMemberWithName[]).map(
-        (member) => ({
-          display_name: formatTemporaryUserLabel(member.id, member.name),
-          id: member.id,
-          user_id: member.id,
-        }),
-      ),
+      members: mapGroupMembers((withNameResult.data ?? []) as GroupMemberRow[]),
     };
   }
 
-  if (!isMissingColumnError(withNameResult.error, "name")) {
+  if (
+    !isMissingAnyColumnError(withNameResult.error, [
+      "name",
+      "user_id",
+    ])
+  ) {
     return {
       errorMessage: `Could not load group members: ${withNameResult.error.message}`,
       members: [],
@@ -113,11 +175,13 @@ async function getGroupMembers(groupId: string): Promise<{
 
   return {
     errorMessage: null,
-    members: ((idOnlyResult.data ?? []) as GroupMemberIdOnly[]).map((member) => ({
-      display_name: formatTemporaryUserLabel(member.id, null),
-      id: member.id,
-      user_id: member.id,
-    })),
+    members: ((idOnlyResult.data ?? []) as GroupMemberIdOnly[]).map(
+      (member) => ({
+        display_name: formatTemporaryUserLabel(member.id, null),
+        id: member.id,
+        user_id: member.id,
+      }),
+    ),
   };
 }
 
@@ -184,7 +248,7 @@ async function getMeetupSlots(
   for (const vote of (voteResult.data ?? []) as AvailabilityVoteRow[]) {
     voteCounts.set(vote.slot_id, (voteCounts.get(vote.slot_id) ?? 0) + 1);
 
-    const userId = vote.user_id || "Unknown user";
+    const userId = vote.user_id || vote.auth_user_id || "Unknown user";
     const existingUserIds = userIdsBySlot.get(vote.slot_id) ?? [];
     userIdsBySlot.set(vote.slot_id, [...existingUserIds, userId]);
 
@@ -296,9 +360,11 @@ export async function getGroupDetails(
     ...groupResult.group,
     current_member_count: memberResult.members.length,
   };
+
   const displayNamesByUserId = new Map(
     memberResult.members.map((member) => [member.user_id, member.display_name]),
   );
+
   const slotsWithDisplayNames = slotResult.slots.map((slot) => ({
     ...slot,
     available_display_names: slot.available_display_names.map((userId) =>

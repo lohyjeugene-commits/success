@@ -2,6 +2,10 @@ import Link from "next/link";
 import { DisplayNameField } from "@/components/groups/display-name-field";
 import { getExistingTemporaryDisplayName } from "@/lib/server/temporary-user";
 import { GroupCard } from "@/components/groups/group-card";
+import {
+  getAuthenticatedUser,
+  getDisplayNameForUser,
+} from "@/lib/supabase/auth";
 import { getActivityGroups } from "@/lib/supabase/activity-groups";
 import { joinGroup } from "../supabase-test/actions";
 
@@ -20,7 +24,11 @@ export const dynamic = "force-dynamic";
 
 export default async function GroupsPage({ searchParams }: GroupsPageProps) {
   const resolvedSearchParams = await searchParams;
-  const currentDisplayName = await getExistingTemporaryDisplayName();
+  const authenticatedUser = await getAuthenticatedUser();
+  const temporaryDisplayName = await getExistingTemporaryDisplayName();
+  const currentDisplayName = authenticatedUser
+    ? getDisplayNameForUser(authenticatedUser)
+    : temporaryDisplayName;
   const message = getSearchParamValue(resolvedSearchParams.message);
   const joinError = getSearchParamValue(resolvedSearchParams.error);
   const { error, groups } = await getActivityGroups();

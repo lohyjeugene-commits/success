@@ -32,6 +32,17 @@ export function isUniqueViolationError(error: SupabaseLikeError) {
   return error.code === "23505";
 }
 
+export function isPermissionDeniedError(error: SupabaseLikeError) {
+  const message = error.message?.toLowerCase() ?? "";
+
+  return (
+    error.code === "42501" ||
+    message.includes("permission denied") ||
+    message.includes("row-level security") ||
+    message.includes("violates row-level security")
+  );
+}
+
 export function isMissingMaxMembersError(error: SupabaseLikeError) {
   const message = error.message?.toLowerCase() ?? "";
 

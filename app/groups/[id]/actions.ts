@@ -3,9 +3,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAuthenticatedUser } from "@/lib/supabase/auth";
+import {
+  getAuthenticatedUser,
+  requireAuthenticatedUser,
+} from "@/lib/supabase/auth";
 import {
   isMissingColumnError,
+  isPermissionDeniedError,
   isMissingTableError,
   isUniqueViolationError,
 } from "@/lib/supabase/errors";
@@ -15,6 +19,11 @@ import {
   getMembershipStateForUser,
 } from "@/lib/supabase/memberships";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+type VoteIdentity = {
+  authUserId: string | null;
+  userId: string;
+};
 
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -73,15 +82,20 @@ async function getSlotGroupId(
 async function insertAvailabilityVote(
   supabase: SupabaseClient,
   slotId: string,
-  userId: string,
+  identity: VoteIdentity,
 ) {
   const insertPayload: {
+    auth_user_id?: string;
     slot_id: string;
     user_id?: string;
   } = {
     slot_id: slotId,
-    user_id: userId,
+    user_id: identity.userId,
   };
+
+  if (identity.authUserId) {
+    insertPayload.auth_user_id = identity.authUserId;
+  }
 
   while (true) {
     const insertResult = await supabase.from("availability_votes").insert([
@@ -92,6 +106,11 @@ async function insertAvailabilityVote(
       return {
         error: null,
       };
+    }
+
+    if (isMissingColumnError(insertResult.error, "auth_user_id")) {
+      delete insertPayload.auth_user_id;
+      continue;
     }
 
     if (isMissingColumnError(insertResult.error, "user_id")) {
@@ -108,22 +127,37 @@ async function insertAvailabilityVote(
 async function hasExistingAvailabilityVote(
   supabase: SupabaseClient,
   slotId: string,
-  userId: string,
+  identity: VoteIdentity,
 ) {
+  if (identity.authUserId) {
+    const authUserIdResult = await supabase
+      .from("availability_votes")
+      .select("id", { count: "exact", head: true })
+      .eq("slot_id", slotId)
+      .eq("auth_user_id", identity.authUserId);
+
+    if (!authUserIdResult.error) {
+      return {
+        alreadyVoted: (authUserIdResult.count ?? 0) > 0,
+        errorMessage: null,
+      };
+    }
+
+    if (!isMissingColumnError(authUserIdResult.error, "auth_user_id")) {
+      return {
+        alreadyVoted: false,
+        errorMessage: `Could not check availability vote: ${authUserIdResult.error.message}`,
+      };
+    }
+  }
+
   const userIdResult = await supabase
     .from("availability_votes")
     .select("id", { count: "exact", head: true })
     .eq("slot_id", slotId)
-    .eq("user_id", userId);
+    .eq("user_id", identity.userId);
 
-  if (!userIdResult.error) {
-    return {
-      alreadyVoted: (userIdResult.count ?? 0) > 0,
-      errorMessage: null,
-    };
-  }
-
-  if (!isMissingColumnError(userIdResult.error, "user_id")) {
+  if (userIdResult.error && !isMissingColumnError(userIdResult.error, "user_id")) {
     return {
       alreadyVoted: false,
       errorMessage: `Could not check availability vote: ${userIdResult.error.message}`,
@@ -131,7 +165,7 @@ async function hasExistingAvailabilityVote(
   }
 
   return {
-    alreadyVoted: false,
+    alreadyVoted: (userIdResult.count ?? 0) > 0,
     errorMessage: null,
   };
 }
@@ -252,24 +286,47 @@ export async function voteAvailability(formData: FormData) {
     redirect(buildRedirectUrl(redirectTo, "error", "Missing slot information."));
   }
 
-  const identity = await getOrCreateTemporaryIdentity(providedDisplayName);
+  const authenticatedUser = await getAuthenticatedUser();
+  const supabase = await createSupabaseServerClient();
+  let voteIdentity: VoteIdentity;
+  let membershipState: {
+    errorMessage: string | null;
+    isMember: boolean;
+  };
 
-  if (identity.missingDisplayName) {
-    redirect(
-      buildRedirectUrl(
-        redirectTo,
-        "error",
-        "Please choose a display name before voting on a meetup slot.",
-      ),
+  if (authenticatedUser) {
+    voteIdentity = {
+      authUserId: authenticatedUser.id,
+      userId: authenticatedUser.id,
+    };
+    membershipState = await getMembershipStateForUser(
+      supabase,
+      groupId,
+      authenticatedUser.id,
+    );
+  } else {
+    const identity = await getOrCreateTemporaryIdentity(providedDisplayName);
+
+    if (identity.missingDisplayName) {
+      redirect(
+        buildRedirectUrl(
+          redirectTo,
+          "error",
+          "Please choose a display name before voting on a meetup slot.",
+        ),
+      );
+    }
+
+    voteIdentity = {
+      authUserId: null,
+      userId: identity.temporaryUserId,
+    };
+    membershipState = await getTemporaryMembershipState(
+      supabase,
+      groupId,
+      identity.temporaryUserId,
     );
   }
-
-  const supabase = await createSupabaseServerClient();
-  const membershipState = await getTemporaryMembershipState(
-    supabase,
-    groupId,
-    identity.temporaryUserId,
-  );
 
   if (membershipState.errorMessage) {
     redirect(buildRedirectUrl(redirectTo, "error", membershipState.errorMessage));
@@ -288,7 +345,7 @@ export async function voteAvailability(formData: FormData) {
   const existingVoteState = await hasExistingAvailabilityVote(
     supabase,
     slotId,
-    identity.temporaryUserId,
+    voteIdentity,
   );
 
   if (existingVoteState.errorMessage) {
@@ -302,7 +359,7 @@ export async function voteAvailability(formData: FormData) {
   const insertResult = await insertAvailabilityVote(
     supabase,
     slotId,
-    identity.temporaryUserId,
+    voteIdentity,
   );
 
   if (insertResult.error && isUniqueViolationError(insertResult.error)) {
@@ -310,8 +367,17 @@ export async function voteAvailability(formData: FormData) {
   }
 
   if (insertResult.error) {
+    if (!authenticatedUser && isPermissionDeniedError(insertResult.error)) {
+      await requireAuthenticatedUser({
+        message:
+          "Please log in to vote on meetup slots once the auth migration is installed.",
+        returnTo: redirectTo,
+      });
+    }
+
     const errorMessage =
       isMissingTableError(insertResult.error) ||
+      isMissingColumnError(insertResult.error, "auth_user_id") ||
       isMissingColumnError(insertResult.error, "user_id")
         ? `Could not save availability vote because the required tables are missing or incomplete. ${getMigrationHintMessage()}`
         : `Could not save availability vote: ${insertResult.error.message}`;
