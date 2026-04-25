@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 export async function SiteHeader() {
   const user = await getAuthenticatedUser();
@@ -12,7 +11,6 @@ export async function SiteHeader() {
           <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
             TouchGrass
           </Link>
-          <ThemeToggle className="lg:hidden" />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 lg:hidden">
@@ -21,6 +19,9 @@ export async function SiteHeader() {
           </Link>
           <Link href="/create-group" className="transition hover:text-slate-950">
             Create
+          </Link>
+          <Link href="/settings" className="transition hover:text-slate-950">
+            Settings
           </Link>
           {user ? (
             <>
@@ -45,6 +46,9 @@ export async function SiteHeader() {
           <Link href="/create-group" className="transition hover:text-slate-950">
             Create
           </Link>
+          <Link href="/settings" className="transition hover:text-slate-950">
+            Settings
+          </Link>
           {user ? (
             <>
               <Link href="/dashboard" className="transition hover:text-slate-950">
@@ -55,8 +59,6 @@ export async function SiteHeader() {
               </Link>
             </>
           ) : null}
-
-          <ThemeToggle />
 
           {user ? (
             <>

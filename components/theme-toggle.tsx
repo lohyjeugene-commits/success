@@ -10,6 +10,7 @@ import {
 
 type ThemeToggleProps = {
   className?: string;
+  size?: "sm" | "md";
 };
 
 const THEME_CHANGE_EVENT = "touchgrass-theme-change";
@@ -50,7 +51,10 @@ function getThemeSnapshot() {
   return readThemeFromDocument();
 }
 
-export function ThemeToggle({ className = "" }: ThemeToggleProps) {
+export function ThemeToggle({
+  className = "",
+  size = "sm",
+}: ThemeToggleProps) {
   const theme = useSyncExternalStore(
     subscribe,
     getThemeSnapshot,
@@ -59,15 +63,25 @@ export function ThemeToggle({ className = "" }: ThemeToggleProps) {
 
   const updateTheme = (nextTheme: Theme) => {
     applyTheme(nextTheme);
-    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {
+      // Ignore storage errors so the theme still updates for this session.
+    }
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   };
 
   const containerClassName = className ? ` ${className}` : "";
+  const containerSizeClassName =
+    size === "md" ? " rounded-2xl p-1.5" : " rounded-full p-1";
+  const buttonSizeClassName =
+    size === "md"
+      ? " rounded-xl px-4 py-2 text-sm"
+      : " rounded-full px-3 py-1.5 text-xs";
 
   return (
     <div
-      className={`inline-flex items-center rounded-full border border-slate-300 bg-slate-50 p-1${containerClassName}`}
+      className={`inline-flex items-center border border-slate-300 bg-slate-50${containerSizeClassName}${containerClassName}`}
       role="group"
       aria-label="Theme toggle"
     >
@@ -80,7 +94,7 @@ export function ThemeToggle({ className = "" }: ThemeToggleProps) {
             type="button"
             onClick={() => updateTheme(option)}
             aria-pressed={isActive}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition ${
+            className={`${buttonSizeClassName} font-semibold capitalize transition ${
               isActive
                 ? "bg-slate-950 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"

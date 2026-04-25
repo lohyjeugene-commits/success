@@ -10,17 +10,17 @@ html[data-theme="light"] {
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --tg-dark-bg: #020617;
-  --tg-dark-surface: rgba(15, 23, 42, 0.9);
-  --tg-dark-surface-strong: #0f172a;
-  --tg-dark-surface-soft: #172133;
-  --tg-dark-surface-muted: #1e293b;
-  --tg-dark-border: #334155;
-  --tg-dark-border-strong: #475569;
-  --tg-dark-text: #f8fafc;
-  --tg-dark-text-strong: #e2e8f0;
-  --tg-dark-text-muted: #cbd5e1;
-  --tg-dark-text-soft: #94a3b8;
+  --tg-dark-bg: #000000;
+  --tg-dark-surface: rgba(2, 6, 12, 0.9);
+  --tg-dark-surface-strong: #030712;
+  --tg-dark-surface-soft: #0b0f14;
+  --tg-dark-surface-muted: #111418;
+  --tg-dark-border: #1f2937;
+  --tg-dark-border-strong: #374151;
+  --tg-dark-text: #fafafa;
+  --tg-dark-text-strong: #e5e7eb;
+  --tg-dark-text-muted: #d1d5db;
+  --tg-dark-text-soft: #9ca3af;
 }
 
 body {
@@ -36,9 +36,9 @@ body {
 
 html[data-theme="dark"] body {
   background:
-    radial-gradient(circle at top, rgb(16 185 129 / 0.18), transparent 32%),
-    radial-gradient(circle at right, rgb(56 189 248 / 0.14), transparent 34%),
-    linear-gradient(180deg, #020617 0%, #08111d 100%);
+    radial-gradient(circle at top, rgb(16 185 129 / 0.1), transparent 22%),
+    radial-gradient(circle at bottom right, rgb(249 115 22 / 0.06), transparent 26%),
+    linear-gradient(180deg, #000000 0%, #020617 48%, #030712 100%);
   color: var(--tg-dark-text-strong);
 }
 
@@ -59,11 +59,11 @@ html[data-theme="dark"] :where(.bg-white\/5) {
 }
 
 html[data-theme="dark"] :where(.bg-white\/75) {
-  background-color: rgb(15 23 42 / 0.78) !important;
+  background-color: rgb(3 7 18 / 0.78) !important;
 }
 
 html[data-theme="dark"] :where(.bg-white\/80) {
-  background-color: rgb(15 23 42 / 0.82) !important;
+  background-color: rgb(3 7 18 / 0.82) !important;
 }
 
 html[data-theme="dark"] :where(.bg-white\/90) {
@@ -107,11 +107,11 @@ html[data-theme="dark"] :where(.text-slate-600) {
 }
 
 html[data-theme="dark"] :where(.text-slate-500) {
-  color: #8ca0b6 !important;
+  color: #6b7280 !important;
 }
 
 html[data-theme="dark"] :where(.text-slate-400) {
-  color: #7c93ad !important;
+  color: #9ca3af !important;
 }
 
 html[data-theme="dark"] :where(.bg-emerald-50) {
@@ -175,15 +175,15 @@ html[data-theme="dark"] :where(.text-orange-700) {
 }
 
 html[data-theme="dark"] :where(.bg-sky-50) {
-  background-color: rgb(56 189 248 / 0.14) !important;
+  background-color: rgb(20 184 166 / 0.1) !important;
 }
 
 html[data-theme="dark"] :where(.border-sky-200) {
-  border-color: rgb(125 211 252 / 0.24) !important;
+  border-color: rgb(45 212 191 / 0.22) !important;
 }
 
 html[data-theme="dark"] :where(.text-sky-700) {
-  color: #7dd3fc !important;
+  color: #5eead4 !important;
 }
 
 html[data-theme="dark"] :where(.bg-amber-50) {
@@ -206,13 +206,13 @@ html[data-theme="dark"] :where(.from-emerald-50) {
 }
 
 html[data-theme="dark"] :where(.via-white) {
-  --tw-gradient-via: rgb(15 23 42 / 0.92) var(--tw-gradient-via-position) !important;
+  --tw-gradient-via: rgb(3 7 18 / 0.92) var(--tw-gradient-via-position) !important;
   --tw-gradient-via-stops:
     var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to) !important;
 }
 
 html[data-theme="dark"] :where(.to-sky-50) {
-  --tw-gradient-to: rgb(56 189 248 / 0.14) var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: rgb(20 184 166 / 0.1) var(--tw-gradient-to-position) !important;
 }
 
 html[data-theme="dark"] :where(.focus\:bg-white:focus) {
@@ -236,11 +236,11 @@ html[data-theme="dark"] :where(.hover\:bg-slate-50:hover) {
 }
 
 html[data-theme="dark"] :where(.hover\:bg-slate-100:hover) {
-  background-color: #243246 !important;
+  background-color: #171717 !important;
 }
 
 html[data-theme="dark"] :where(.hover\:bg-white\/80:hover) {
-  background-color: rgb(30 41 59 / 0.9) !important;
+  background-color: rgb(17 17 17 / 0.92) !important;
 }
 
 html[data-theme="dark"] :where(.hover\:bg-rose-100:hover) {
@@ -253,4 +253,12 @@ html[data-theme="dark"] :where(.hover\:text-slate-950:hover) {
 
 html[data-theme="dark"] :where(.hover\:text-emerald-600:hover) {
   color: #86efac !important;
+}
+
+html[data-theme="dark"] :where(.bg-slate-950) {
+  background-color: #000000 !important;
+}
+
+html[data-theme="dark"] :where(.hover\:bg-slate-800:hover) {
+  background-color: #171717 !important;
 }
