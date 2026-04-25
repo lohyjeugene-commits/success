@@ -2,7 +2,10 @@ import Link from "next/link";
 import { CopyTextButton } from "@/components/ids/copy-text-button";
 import { ProfilePictureSection } from "@/components/profile/profile-picture-section";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
-import { ensureProfileForUser, getCurrentUserProfile } from "@/lib/supabase/profiles";
+import {
+  ensureProfileForUser,
+  getCurrentUserProfile,
+} from "@/lib/supabase/profiles";
 import { updateProfile } from "./actions";
 
 type ProfilePageProps = {
@@ -21,6 +24,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     message: "Please log in to manage your profile.",
     returnTo: "/profile",
   });
+
   await ensureProfileForUser(user);
 
   const resolvedSearchParams = await searchParams;
@@ -39,6 +43,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           >
             Back to dashboard
           </Link>
+
           <div className="rounded-3xl border border-slate-200 bg-white px-7 py-8 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
               Public profile
@@ -114,7 +119,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
           <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-slate-950">Profile details</h2>
+              <h2 className="text-xl font-semibold text-slate-950">
+                Profile details
+              </h2>
               <p className="mt-1 text-sm text-slate-600">
                 Keep this short, friendly, and easy to read.
               </p>
@@ -129,15 +136,20 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </div>
 
           <form action={updateProfile} className="mt-6 grid gap-5 md:grid-cols-2">
-            <ProfilePictureSection
-              avatarEmoji={profile?.avatar_emoji ?? null}
-              fullName={profile?.full_name ?? null}
-              profilePictureUrl={profile?.profile_picture_url ?? null}
-              username={profile?.username ?? null}
-            />
+            <div className="md:col-span-2">
+              <ProfilePictureSection
+                avatarEmoji={profile?.avatar_emoji ?? null}
+                fullName={profile?.full_name ?? null}
+                profilePictureUrl={profile?.profile_picture_url ?? null}
+                username={profile?.username ?? null}
+              />
+            </div>
 
             <div className="space-y-2">
-              <label htmlFor="full_name" className="block text-sm font-medium text-slate-700">
+              <label
+                htmlFor="full_name"
+                className="block text-sm font-medium text-slate-700"
+              >
                 Full name
               </label>
               <input
@@ -151,7 +163,10 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="username" className="block text-sm font-medium text-slate-700">
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-slate-700"
+              >
                 Username
               </label>
               <input
@@ -182,7 +197,10 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="home_area" className="block text-sm font-medium text-slate-700">
+              <label
+                htmlFor="home_area"
+                className="block text-sm font-medium text-slate-700"
+              >
                 Home area
               </label>
               <input
@@ -196,7 +214,10 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <label htmlFor="bio" className="block text-sm font-medium text-slate-700">
+              <label
+                htmlFor="bio"
+                className="block text-sm font-medium text-slate-700"
+              >
                 Bio
               </label>
               <textarea
@@ -236,7 +257,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
               </div>
             </div>
 
-            <div className="md:col-span-2 flex items-center justify-end border-t border-slate-200 pt-5">
+            <div className="flex items-center justify-end border-t border-slate-200 pt-5 md:col-span-2">
               <button
                 type="submit"
                 className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
