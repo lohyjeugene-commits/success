@@ -76,13 +76,14 @@ async function getExistingMembershipState(
   if (identity.authUserId) {
     const withAuthUserIdResult = await supabase
       .from("group_members")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("group_id", groupId)
-      .eq("auth_user_id", identity.authUserId);
+      .eq("auth_user_id", identity.authUserId)
+      .limit(1);
 
     if (!withAuthUserIdResult.error) {
       return {
-        alreadyJoined: (withAuthUserIdResult.count ?? 0) > 0,
+        alreadyJoined: (withAuthUserIdResult.data ?? []).length > 0,
         errorMessage: null,
       };
     }
@@ -97,11 +98,15 @@ async function getExistingMembershipState(
 
   const withUserIdResult = await supabase
     .from("group_members")
-    .select("id", { count: "exact", head: true })
+    .select("id")
     .eq("group_id", groupId)
-    .eq("user_id", identity.userId);
+    .eq("user_id", identity.userId)
+    .limit(1);
 
-  if (withUserIdResult.error && !isMissingColumnError(withUserIdResult.error, "user_id")) {
+  if (
+    withUserIdResult.error &&
+    !isMissingColumnError(withUserIdResult.error, "user_id")
+  ) {
     return {
       alreadyJoined: false,
       errorMessage: `Could not check existing membership: ${withUserIdResult.error.message}`,
@@ -109,7 +114,7 @@ async function getExistingMembershipState(
   }
 
   return {
-    alreadyJoined: (withUserIdResult.count ?? 0) > 0,
+    alreadyJoined: (withUserIdResult.data ?? []).length > 0,
     errorMessage: null,
   };
 }
@@ -226,7 +231,9 @@ async function insertGroupMember(
   let missingRole = false;
 
   while (true) {
-    const insertResult = await supabase.from("group_members").insert([insertPayload]);
+    const insertResult = await supabase.from("group_members").insert([
+      insertPayload,
+    ]);
 
     if (!insertResult.error) {
       return {
@@ -390,7 +397,10 @@ export async function createGroup(formData: FormData) {
     "creator",
   );
 
-  if (membershipInsertResult.error && !isUniqueViolationError(membershipInsertResult.error)) {
+  if (
+    membershipInsertResult.error &&
+    !isUniqueViolationError(membershipInsertResult.error)
+  ) {
     redirect(
       buildRedirectUrl(
         redirectTo,
@@ -407,9 +417,7 @@ export async function createGroup(formData: FormData) {
     membershipInsertResult.missingRole;
 
   if (groupInsertResult.missingMaxMembers) {
-    warnings.push(
-      "max_members was not saved because the column is missing.",
-    );
+    warnings.push("max_members was not saved because the column is missing.");
   }
 
   if (groupInsertResult.missingCreatorUserId) {
@@ -445,8 +453,6 @@ export async function createGroup(formData: FormData) {
 export async function joinGroup(formData: FormData) {
   const groupId = getTextValue(formData, "group_id");
   const providedDisplayName = getTextValue(formData, "display_name");
-  const guestDisplayName = providedDisplayName || "Anonymous";
-
   const { errorKey, redirectTo, successKey } = getRedirectConfig(formData, {
     errorKey: "joinError",
     redirectTo: "/supabase-test",
@@ -457,63 +463,87 @@ export async function joinGroup(formData: FormData) {
     redirect(buildRedirectUrl(redirectTo, errorKey, "Missing group id."));
   }
 
-  const supabase = createSupabaseClient();
+  const authenticatedUser = await getAuthenticatedUser();
+  let identity: MemberIdentity;
 
-  const userId = crypto.randomUUID();
+  if (authenticatedUser) {
+    identity = {
+      authUserId: authenticatedUser.id,
+      displayName: getDisplayNameForUser(authenticatedUser),
+      userId: authenticatedUser.id,
+    };
+  } else {
+    const temporaryIdentity = await getOrCreateTemporaryIdentity(providedDisplayName);
 
-const existingMembership = await supabase
-  .from("group_members")
-  .select("id")
-  .eq("group_id", groupId)
-  .eq("display_name", guestDisplayName);
+    if (temporaryIdentity.missingDisplayName || !temporaryIdentity.displayName) {
+      redirect(
+        buildRedirectUrl(
+          redirectTo,
+          errorKey,
+          "Please choose a display name before joining a group.",
+        ),
+      );
+    }
 
-if (existingMembership.error) {
-  redirect(
-    buildRedirectUrl(
-      redirectTo,
-      errorKey,
-      `Could not check existing membership: ${existingMembership.error.message}`,
-    ),
+    identity = {
+      authUserId: null,
+      displayName: temporaryIdentity.displayName,
+      userId: temporaryIdentity.temporaryUserId,
+    };
+  }
+
+  const capacityState = await getGroupCapacityState(groupId, identity);
+
+  if (capacityState.errorMessage) {
+    redirect(buildRedirectUrl(redirectTo, errorKey, capacityState.errorMessage));
+  }
+
+  if (capacityState.alreadyJoined) {
+    redirect(
+      buildRedirectUrl(redirectTo, successKey, "You already joined this group."),
+    );
+  }
+
+  if (
+    capacityState.maxMembers !== null &&
+    capacityState.memberCount >= capacityState.maxMembers
+  ) {
+    redirect(buildRedirectUrl(redirectTo, errorKey, "This group is already full."));
+  }
+
+  const membershipInsertResult = await insertGroupMember(
+    capacityState.supabase,
+    groupId,
+    identity,
+    "member",
   );
-}
 
-if ((existingMembership.data ?? []).length > 0) {
-  redirect(
-    buildRedirectUrl(
-      redirectTo,
-      successKey,
-      "You already joined this group",
-    ),
-  );
-}
+  if (
+    membershipInsertResult.error &&
+    isUniqueViolationError(membershipInsertResult.error)
+  ) {
+    redirect(
+      buildRedirectUrl(redirectTo, successKey, "You already joined this group."),
+    );
+  }
 
-  const { error } = await supabase.from("group_members").insert([
-    {
-      group_id: groupId,
-      user_id: userId,
-      display_name: guestDisplayName,
-      role: "member",
-    },
-  ]);
+  if (membershipInsertResult.error) {
+    if (!authenticatedUser && isPermissionDeniedError(membershipInsertResult.error)) {
+      await requireAuthenticatedUser({
+        message:
+          "Please log in to join groups once the auth migration is installed.",
+        returnTo: redirectTo,
+      });
+    }
 
-  if (error) {
     redirect(
       buildRedirectUrl(
         redirectTo,
         errorKey,
-        `Could not join group: ${error.message}`,
+        `Could not join group: ${membershipInsertResult.error.message}`,
       ),
     );
   }
-
-  revalidatePath("/supabase-test");
-  revalidatePath("/groups");
-  revalidatePath("/dashboard");
-
-  redirect(
-    buildRedirectUrl(redirectTo, successKey, "Joined group successfully"),
-  );
-}
 
   const warnings: string[] = [];
 
