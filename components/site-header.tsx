@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export async function SiteHeader() {
   const user = await getAuthenticatedUser();
@@ -11,20 +12,30 @@ export async function SiteHeader() {
           <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
             TouchGrass
           </Link>
-          <div className="flex items-center gap-3 text-sm text-slate-500 lg:hidden">
-            <Link href="/groups" className="transition hover:text-slate-950">
-              Groups
-            </Link>
-            {user ? (
+          <ThemeToggle className="lg:hidden" />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 lg:hidden">
+          <Link href="/groups" className="transition hover:text-slate-950">
+            Groups
+          </Link>
+          <Link href="/create-group" className="transition hover:text-slate-950">
+            Create
+          </Link>
+          {user ? (
+            <>
               <Link href="/dashboard" className="transition hover:text-slate-950">
                 Dashboard
               </Link>
-            ) : (
-              <Link href="/login" className="transition hover:text-slate-950">
-                Log in
+              <Link href="/profile" className="transition hover:text-slate-950">
+                Profile
               </Link>
-            )}
-          </div>
+            </>
+          ) : (
+            <Link href="/login" className="transition hover:text-slate-950">
+              Log in
+            </Link>
+          )}
         </div>
 
         <div className="hidden items-center gap-4 text-sm text-slate-600 lg:flex">
@@ -42,6 +53,13 @@ export async function SiteHeader() {
               <Link href="/profile" className="transition hover:text-slate-950">
                 Profile
               </Link>
+            </>
+          ) : null}
+
+          <ThemeToggle />
+
+          {user ? (
+            <>
               <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
                 {user.email ?? "Signed in"}
               </span>
@@ -62,6 +80,24 @@ export async function SiteHeader() {
               Log in
             </Link>
           )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 lg:hidden">
+          {user ? (
+            <>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+                {user.email ?? "Signed in"}
+              </span>
+              <form action="/auth/signout" method="post">
+                <button
+                  type="submit"
+                  className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Log out
+                </button>
+              </form>
+            </>
+          ) : null}
         </div>
       </div>
     </header>
