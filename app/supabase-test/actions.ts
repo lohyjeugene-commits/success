@@ -25,6 +25,13 @@ type MemberIdentity = {
   userId: string;
 };
 
+type SupabaseActionError = {
+  code?: string;
+  details?: string | null;
+  hint?: string | null;
+  message?: string;
+};
+
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
@@ -68,11 +75,34 @@ function getAuthMigrationHintMessage() {
   return "Run the SQL in supabase/migrations/20260422_add_auth_profiles_permissions_and_dashboard.sql.";
 }
 
+function getSupabaseErrorMessage(
+  error: SupabaseActionError,
+  fallbackMessage: string,
+) {
+  const messageParts = [
+    error.message?.trim(),
+    error.details?.trim(),
+    error.hint?.trim(),
+  ].filter(Boolean);
+
+  if (messageParts.length > 0) {
+    return messageParts.join(" ");
+  }
+
+  if (error.code) {
+    return `${fallbackMessage} (code: ${error.code})`;
+  }
+
+  return fallbackMessage;
+}
+
 async function getExistingMembershipState(
   supabase: SupabaseClient,
   groupId: string,
   identity: Pick<MemberIdentity, "authUserId" | "userId">,
 ) {
+  let authUserIdError: SupabaseActionError | null = null;
+
   if (identity.authUserId) {
     const withAuthUserIdResult = await supabase
       .from("group_members")
@@ -89,10 +119,7 @@ async function getExistingMembershipState(
     }
 
     if (!isMissingColumnError(withAuthUserIdResult.error, "auth_user_id")) {
-      return {
-        alreadyJoined: false,
-        errorMessage: `Could not check existing membership: ${withAuthUserIdResult.error.message}`,
-      };
+      authUserIdError = withAuthUserIdResult.error;
     }
   }
 
@@ -107,9 +134,39 @@ async function getExistingMembershipState(
     withUserIdResult.error &&
     !isMissingColumnError(withUserIdResult.error, "user_id")
   ) {
+    if (
+      isPermissionDeniedError(withUserIdResult.error) ||
+      (authUserIdError && isPermissionDeniedError(authUserIdError))
+    ) {
+      return {
+        alreadyJoined: false,
+        errorMessage: null,
+      };
+    }
+
     return {
       alreadyJoined: false,
-      errorMessage: `Could not check existing membership: ${withUserIdResult.error.message}`,
+      errorMessage: `Could not check existing membership: ${getSupabaseErrorMessage(
+        withUserIdResult.error,
+        "Supabase returned an unknown error while checking membership.",
+      )}`,
+    };
+  }
+
+  if (withUserIdResult.error && authUserIdError) {
+    if (isPermissionDeniedError(authUserIdError)) {
+      return {
+        alreadyJoined: false,
+        errorMessage: null,
+      };
+    }
+
+    return {
+      alreadyJoined: false,
+      errorMessage: `Could not check existing membership: ${getSupabaseErrorMessage(
+        authUserIdError,
+        "Supabase returned an unknown error while checking membership.",
+      )}`,
     };
   }
 
@@ -142,7 +199,10 @@ async function getGroupCapacityState(
 
   if (groupResult.error) {
     return {
-      errorMessage: `Could not check group capacity: ${groupResult.error.message}`,
+      errorMessage: `Could not check group capacity: ${getSupabaseErrorMessage(
+        groupResult.error,
+        "Supabase returned an unknown error while checking group capacity.",
+      )}`,
       maxMembers,
       memberCount: 0,
       supabase,
@@ -170,7 +230,10 @@ async function getGroupCapacityState(
   if (memberCountResult.error) {
     return {
       alreadyJoined: false,
-      errorMessage: `Could not check current members: ${memberCountResult.error.message}`,
+      errorMessage: `Could not check current members: ${getSupabaseErrorMessage(
+        memberCountResult.error,
+        "Supabase returned an unknown error while checking the current member count.",
+      )}`,
       maxMembers,
       memberCount: 0,
       supabase,
@@ -381,7 +444,10 @@ export async function createGroup(formData: FormData) {
       buildRedirectUrl(
         redirectTo,
         errorKey,
-        `Could not create group: ${groupInsertResult.error?.message ?? "Unknown error."}`,
+        `Could not create group: ${getSupabaseErrorMessage(
+          groupInsertResult.error ?? {},
+          "Supabase returned an unknown error while creating the group.",
+        )}`,
       ),
     );
   }
@@ -405,7 +471,10 @@ export async function createGroup(formData: FormData) {
       buildRedirectUrl(
         redirectTo,
         errorKey,
-        `Group created, but creator membership could not be saved: ${membershipInsertResult.error.message}`,
+        `Group created, but creator membership could not be saved: ${getSupabaseErrorMessage(
+          membershipInsertResult.error,
+          "Supabase returned an unknown error while saving the creator membership.",
+        )}`,
       ),
     );
   }
@@ -540,7 +609,10 @@ export async function joinGroup(formData: FormData) {
       buildRedirectUrl(
         redirectTo,
         errorKey,
-        `Could not join group: ${membershipInsertResult.error.message}`,
+        `Could not join group: ${getSupabaseErrorMessage(
+          membershipInsertResult.error,
+          "Supabase returned an unknown error while joining the group.",
+        )}`,
       ),
     );
   }
