@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getProfileInitials, getProfileTitle } from "@/lib/profile-display";
 import { getPublicProfileById } from "@/lib/supabase/profiles";
 
 type PublicProfilePageProps = {
@@ -8,11 +9,32 @@ type PublicProfilePageProps = {
   }>;
 };
 
-function getProfileTitle(profile: {
+function renderProfileAvatar(profile: {
+  avatar_emoji: string | null;
   full_name: string | null;
+  profile_picture_url: string | null;
   username: string | null;
 }) {
-  return profile.full_name || profile.username || "TouchGrass member";
+  const title = getProfileTitle(profile);
+
+  if (profile.profile_picture_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={profile.profile_picture_url}
+        alt={`${title} profile picture`}
+        className="h-16 w-16 rounded-2xl border border-slate-200 object-cover shadow-sm"
+      />
+    );
+  }
+
+  const initials = getProfileInitials(profile) || "TG";
+
+  return (
+    <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-2xl">
+      {initials}
+    </div>
+  );
 }
 
 export default async function PublicProfilePage({ params }: PublicProfilePageProps) {
@@ -44,9 +66,7 @@ export default async function PublicProfilePage({ params }: PublicProfilePagePro
         <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-2xl">
-                {profile.avatar_emoji || "TG"}
-              </div>
+              {renderProfileAvatar(profile)}
               <div className="space-y-2">
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
                   Public profile

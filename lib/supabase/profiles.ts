@@ -9,6 +9,7 @@ export type UserProfileRow = {
   full_name: string | null;
   home_area: string | null;
   id: string;
+  profile_picture_url: string | null;
   updated_at: string;
   username: string | null;
 };
@@ -48,7 +49,7 @@ export async function getCurrentUserProfile(user: User) {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, username, full_name, bio, favorite_activity, home_area, avatar_emoji, created_at, updated_at",
+      "id, username, full_name, bio, favorite_activity, home_area, avatar_emoji, profile_picture_url, created_at, updated_at",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -71,7 +72,7 @@ export async function getPublicProfileById(profileId: string) {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, username, full_name, bio, favorite_activity, home_area, avatar_emoji, created_at, updated_at",
+      "id, username, full_name, bio, favorite_activity, home_area, avatar_emoji, profile_picture_url, created_at, updated_at",
     )
     .eq("id", profileId)
     .maybeSingle();

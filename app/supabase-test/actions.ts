@@ -133,9 +133,7 @@ async function getExistingMembershipState(
   if (
     withUserIdResult.error &&
     !isMissingColumnError(withUserIdResult.error, "user_id")
-  ) {git add .
->> git commit -m "your message"
->> git push
+  ) {
     if (
       isPermissionDeniedError(withUserIdResult.error) ||
       (authUserIdError && isPermissionDeniedError(authUserIdError))

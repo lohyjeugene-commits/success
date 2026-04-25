@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyTextButton } from "@/components/ids/copy-text-button";
+import { ProfilePictureSection } from "@/components/profile/profile-picture-section";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 import { ensureProfileForUser, getCurrentUserProfile } from "@/lib/supabase/profiles";
 import { updateProfile } from "./actions";
@@ -128,6 +129,13 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </div>
 
           <form action={updateProfile} className="mt-6 grid gap-5 md:grid-cols-2">
+            <ProfilePictureSection
+              avatarEmoji={profile?.avatar_emoji ?? null}
+              fullName={profile?.full_name ?? null}
+              profilePictureUrl={profile?.profile_picture_url ?? null}
+              username={profile?.username ?? null}
+            />
+
             <div className="space-y-2">
               <label htmlFor="full_name" className="block text-sm font-medium text-slate-700">
                 Full name

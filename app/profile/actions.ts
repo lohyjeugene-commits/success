@@ -20,6 +20,10 @@ function normalizeUsername(value: string) {
     .slice(0, 24);
 }
 
+function isValidProfilePictureUrl(value: string) {
+  return value.startsWith("http://") || value.startsWith("https://");
+}
+
 export async function updateProfile(formData: FormData) {
   const user = await requireAuthenticatedUser({
     message: "Please log in to edit your profile.",
@@ -32,6 +36,13 @@ export async function updateProfile(formData: FormData) {
   const favoriteActivity = getTextValue(formData, "favorite_activity");
   const homeArea = getTextValue(formData, "home_area");
   const avatarEmoji = getTextValue(formData, "avatar_emoji");
+  const profilePictureUrl = getTextValue(formData, "profile_picture_url");
+
+  if (profilePictureUrl && !isValidProfilePictureUrl(profilePictureUrl)) {
+    redirect(
+      "/profile?error=Profile+picture+URL+must+start+with+http%3A%2F%2F+or+https%3A%2F%2F.",
+    );
+  }
 
   const { error } = await supabase.from("profiles").upsert(
     [
@@ -42,6 +53,7 @@ export async function updateProfile(formData: FormData) {
         full_name: fullName || null,
         home_area: homeArea || null,
         id: user.id,
+        profile_picture_url: profilePictureUrl || null,
         username: username || null,
       },
     ],
