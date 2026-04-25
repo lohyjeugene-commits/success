@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { deleteManagedGroups } from "./actions";
 import { acceptSlotInvite, voteAvailability } from "@/app/groups/[id]/actions";
+import { CopyTextButton } from "@/components/ids/copy-text-button";
+import { QuickGroupIdList } from "@/components/ids/quick-group-id-list";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 import { getDashboardData } from "@/lib/supabase/dashboard";
 import { ensureProfileForUser } from "@/lib/supabase/profiles";
@@ -34,6 +37,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const message = getSearchParamValue(resolvedSearchParams.message);
   const error = getSearchParamValue(resolvedSearchParams.error);
   const dashboardResult = await getDashboardData(user.id);
+  const managedGroupCount = dashboardResult.joinedGroups.filter(
+    (group) => group.can_manage,
+  ).length;
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 sm:px-8">
@@ -49,6 +55,40 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             See the groups you joined, track which meetup slots you are invited
             to, and accept event invites when the timing works for you.
           </p>
+        </section>
+
+        <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-7 shadow-sm">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                SQL / Admin IDs
+              </p>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                Your auth user ID
+              </h2>
+              <p className="max-w-2xl text-sm leading-6 text-slate-700">
+                This is the exact user ID to use when you update your role in
+                Supabase SQL or inspect your membership rows.
+              </p>
+            </div>
+
+            <CopyTextButton text={user.id} />
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+            <code className="block break-all rounded-2xl bg-slate-950 px-5 py-5 text-base font-medium text-white">
+              {user.id}
+            </code>
+
+            <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Account email
+              </p>
+              <p className="mt-3 break-all text-sm text-slate-900">
+                {user.email ?? "No email available"}
+              </p>
+            </div>
+          </div>
         </section>
 
         {message ? (
@@ -67,6 +107,43 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
             {dashboardResult.errorMessage}
           </div>
+        ) : null}
+
+        <QuickGroupIdList
+          groups={dashboardResult.joinedGroups}
+          title="Group IDs for every group you joined"
+          description="Use these exact group IDs for SQL role updates, group lookups, and admin actions. You do not need to open each group page to find them."
+        />
+
+        {managedGroupCount > 0 ? (
+          <section className="rounded-3xl border border-rose-200 bg-rose-50 p-7 shadow-sm">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-700">
+                  Admin tools
+                </p>
+                <h2 className="text-2xl font-semibold tracking-tight text-rose-950">
+                  Delete all groups you manage
+                </h2>
+                <p className="max-w-2xl text-sm leading-6 text-rose-800">
+                  This permanently removes every group where you are currently a
+                  creator or admin, including members, meetup slots, and
+                  related history.
+                </p>
+              </div>
+
+              <form action={deleteManagedGroups}>
+                <input type="hidden" name="redirect_to" value="/dashboard" />
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-xl border border-rose-300 bg-white px-5 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                >
+                  Delete {managedGroupCount} managed group
+                  {managedGroupCount === 1 ? "" : "s"}
+                </button>
+              </form>
+            </div>
+          </section>
         ) : null}
 
         <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">

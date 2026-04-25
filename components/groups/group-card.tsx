@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { CopyTextButton } from "@/components/ids/copy-text-button";
 import type { ActivityGroupRow } from "@/types/group";
 
 type GroupCardProps = {
@@ -37,6 +38,25 @@ export function GroupCard({ actionSlot, group, href }: GroupCardProps) {
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+              Group ID
+            </p>
+            <p className="text-sm text-slate-600">
+              Use this exact ID for SQL, admin updates, or debugging.
+            </p>
+          </div>
+
+          <CopyTextButton text={group.id} />
+        </div>
+
+        <code className="mt-4 block break-all rounded-2xl bg-white px-4 py-4 text-sm font-medium text-slate-900">
+          {group.id}
+        </code>
+      </div>
+
       {href ? (
         <Link
           href={href}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DisplayNameField } from "@/components/groups/display-name-field";
 import { getExistingTemporaryDisplayName } from "@/lib/server/temporary-user";
 import { GroupCard } from "@/components/groups/group-card";
+import { QuickGroupIdList } from "@/components/ids/quick-group-id-list";
 import {
   getAuthenticatedUser,
   getDisplayNameForUser,
@@ -71,6 +72,12 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
             </Link>
           </div>
         </div>
+
+        <QuickGroupIdList
+          groups={groups}
+          title="Quick Group IDs"
+          description="Every group ID is listed here in one place so you can copy it directly without opening each card or reading the URL."
+        />
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="space-y-3">

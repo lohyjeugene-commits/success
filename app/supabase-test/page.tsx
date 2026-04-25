@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DisplayNameField } from "@/components/groups/display-name-field";
 import { GroupCard } from "@/components/groups/group-card";
 import { GroupForm } from "@/components/groups/group-form";
+import { QuickGroupIdList } from "@/components/ids/quick-group-id-list";
 import { getExistingTemporaryDisplayName } from "@/lib/server/temporary-user";
 import {
   getAuthenticatedUser,
@@ -114,6 +115,16 @@ export default async function Page({ searchParams }: SupabaseTestPageProps) {
                 No groups yet.
               </div>
             )}
+
+            {!error && groups.length > 0 ? (
+              <div className="mb-6">
+                <QuickGroupIdList
+                  groups={groups}
+                  title="Quick Group IDs"
+                  description="Copy any group ID from here without opening a details page or inspecting hidden form fields."
+                />
+              </div>
+            ) : null}
 
             {!error && groups.length > 0 && (
               <div className="space-y-4">

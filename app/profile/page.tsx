@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CopyTextButton } from "@/components/ids/copy-text-button";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 import { ensureProfileForUser, getCurrentUserProfile } from "@/lib/supabase/profiles";
 import { updateProfile } from "./actions";
@@ -68,6 +69,46 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             {error}
           </div>
         ) : null}
+
+        <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-7 shadow-sm">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                SQL / Admin IDs
+              </p>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                Your auth user ID
+              </h2>
+              <p className="max-w-2xl text-sm leading-6 text-slate-700">
+                This is the user ID to use in Supabase SQL when you want to
+                promote yourself, check memberships, or inspect your account
+                directly.
+              </p>
+            </div>
+
+            <CopyTextButton text={user.id} />
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+            <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Auth user ID
+              </p>
+              <code className="mt-3 block break-all rounded-2xl bg-slate-950 px-4 py-4 text-base font-medium text-white">
+                {user.id}
+              </code>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Account email
+              </p>
+              <p className="mt-3 break-all text-sm text-slate-900">
+                {user.email ?? "No email available"}
+              </p>
+            </div>
+          </div>
+        </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
           <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">

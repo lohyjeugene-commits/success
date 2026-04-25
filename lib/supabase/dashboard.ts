@@ -4,6 +4,7 @@ import { isMissingColumnError, isMissingTableError } from "./errors";
 import type { ActivityGroupRow, MeetupSlotRow } from "@/types/group";
 
 export type JoinedGroupSummary = ActivityGroupRow & {
+  can_manage: boolean;
   membership_role: string | null;
 };
 
@@ -57,7 +58,7 @@ export async function getDashboardData(userId: string) {
 
   const groupsResult = await supabase
     .from("activity_groups")
-    .select("id, title, activity_type, area, max_members")
+    .select("id, title, activity_type, area, max_members, creator_user_id")
     .in("id", groupIds)
     .order("id", { ascending: false });
 
@@ -73,7 +74,7 @@ export async function getDashboardData(userId: string) {
     groupsResult.error && isMissingColumnError(groupsResult.error, "max_members")
       ? await supabase
           .from("activity_groups")
-          .select("id, title, activity_type, area")
+          .select("id, title, activity_type, area, creator_user_id")
           .in("id", groupIds)
           .order("id", { ascending: false })
       : null;
@@ -124,6 +125,10 @@ export async function getDashboardData(userId: string) {
   );
 
   const joinedGroups: JoinedGroupSummary[] = groups.map((group) => ({
+    can_manage:
+      group.creator_user_id === userId ||
+      membershipRoleMap.get(group.id) === "admin" ||
+      membershipRoleMap.get(group.id) === "creator",
     ...group,
     current_member_count: memberCountMap.get(group.id) ?? 0,
     membership_role: membershipRoleMap.get(group.id) ?? null,
