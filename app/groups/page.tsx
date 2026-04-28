@@ -101,7 +101,6 @@ export default async function GroupsPage({
               name="area"
               defaultValue={area}
               className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              onChange="this.form.submit()"
             >
               <option value="">All areas</option>
               {SINGAPORE_AREAS.map((a) => (
