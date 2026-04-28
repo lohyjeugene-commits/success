@@ -24,7 +24,9 @@ function getSearchParamValue(value: string | string[] | undefined) {
 
 export const dynamic = "force-dynamic";
 
-
+export default async function GroupsPage({
+  searchParams,
+}: GroupsPageProps) {
   const resolvedSearchParams = await searchParams;
   const authenticatedUser = await getAuthenticatedUser();
   const temporaryDisplayName = await getExistingTemporaryDisplayName();
