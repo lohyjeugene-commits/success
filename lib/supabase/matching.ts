@@ -43,7 +43,7 @@ export async function findMatchingGroups(
     .select("group_id");
   
   if (memberResult.error) {
-    return { groups: [], error: memberResult.error };
+    return { groups: [], error: memberResult.error.message };
   }
   
   // Calculate member counts per group
