@@ -16,6 +16,7 @@ import {
 } from "@/lib/supabase/errors";
 import { getOrCreateTemporaryIdentity } from "@/lib/server/temporary-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isValidSingaporeArea } from "@/lib/constants/singapore-areas";
 
 const allowedMaxMembers = new Set(["2", "3", "4", "5", "6", "8", "10"]);
 
@@ -424,6 +425,16 @@ export async function createGroup(formData: FormData) {
 
   if (!title || !activityType || !area) {
     redirect(buildRedirectUrl(redirectTo, errorKey, "Please fill in all fields."));
+  }
+
+  if (!isValidSingaporeArea(area)) {
+    redirect(
+      buildRedirectUrl(
+        redirectTo,
+        errorKey,
+        "Please select a valid area from the dropdown.",
+      ),
+    );
   }
 
   const user = await requireAuthenticatedUser({

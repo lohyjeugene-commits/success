@@ -8,6 +8,7 @@ import {
   getDisplayNameForUser,
 } from "@/lib/supabase/auth";
 import { getActivityGroups } from "@/lib/supabase/activity-groups";
+import { SINGAPORE_AREAS } from "@/lib/constants/singapore-areas";
 import { joinGroup } from "../supabase-test/actions";
 
 type GroupsPageProps = {
@@ -23,7 +24,7 @@ function getSearchParamValue(value: string | string[] | undefined) {
 
 export const dynamic = "force-dynamic";
 
-export default async function GroupsPage({ searchParams }: GroupsPageProps) {
+
   const resolvedSearchParams = await searchParams;
   const authenticatedUser = await getAuthenticatedUser();
   const temporaryDisplayName = await getExistingTemporaryDisplayName();
@@ -32,7 +33,10 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
     : temporaryDisplayName;
   const message = getSearchParamValue(resolvedSearchParams.message);
   const joinError = getSearchParamValue(resolvedSearchParams.error);
-  const { error, groups } = await getActivityGroups();
+
+  // Area filter from query string
+  const area = getSearchParamValue(resolvedSearchParams.area) || "";
+  const { error, groups } = await getActivityGroups(area);
 
   return (
     <main className="min-h-screen px-6 py-10 sm:px-8">
@@ -80,6 +84,30 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
         />
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          {/* Area Filter Dropdown */}
+          <form
+            method="get"
+            className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
+            style={{ maxWidth: 480 }}
+          >
+            <label htmlFor="area" className="text-sm font-medium text-slate-700">
+              Filter by area
+            </label>
+            <select
+              id="area"
+              name="area"
+              defaultValue={area}
+              className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              onChange="this.form.submit()"
+            >
+              <option value="">All areas</option>
+              {SINGAPORE_AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </form>
           <div className="space-y-3">
             {message && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">

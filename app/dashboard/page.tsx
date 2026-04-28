@@ -6,6 +6,8 @@ import { QuickGroupIdList } from "@/components/ids/quick-group-id-list";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 import { getDashboardData } from "@/lib/supabase/dashboard";
 import { ensureProfileForUser } from "@/lib/supabase/profiles";
+import { getUserRating } from "@/lib/supabase/reliability";
+import { ReliabilityDisplay } from "@/components/users/reliability-display";
 
 type DashboardPageProps = {
   searchParams: Promise<{
@@ -40,6 +42,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const managedGroupCount = dashboardResult.joinedGroups.filter(
     (group) => group.can_manage,
   ).length;
+  const userRating = await getUserRating(user.id);
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 sm:px-8">
@@ -55,6 +58,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             See the groups you joined, track which meetup slots you are invited
             to, and accept event invites when the timing works for you.
           </p>
+
+          <div className="mt-6">
+            <ReliabilityDisplay rating={userRating} />
+          </div>
         </section>
 
         <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-7 shadow-sm">

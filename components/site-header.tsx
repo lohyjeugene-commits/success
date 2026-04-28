@@ -17,9 +17,17 @@ export async function SiteHeader() {
           <Link href="/groups" className="transition hover:text-slate-950">
             Groups
           </Link>
+          <Link href="/find-match" className="transition hover:text-slate-950">
+            Find Match
+          </Link>
           <Link href="/create-group" className="transition hover:text-slate-950">
             Create
           </Link>
+          {user && (
+            <Link href="/my-groups" className="transition hover:text-slate-950">
+              My Groups
+            </Link>
+          )}
           <Link href="/settings" className="transition hover:text-slate-950">
             Settings
           </Link>
@@ -43,9 +51,17 @@ export async function SiteHeader() {
           <Link href="/groups" className="transition hover:text-slate-950">
             Groups
           </Link>
+          <Link href="/find-match" className="transition hover:text-slate-950">
+            Find Match
+          </Link>
           <Link href="/create-group" className="transition hover:text-slate-950">
             Create
           </Link>
+          {user && (
+            <Link href="/my-groups" className="transition hover:text-slate-950">
+              My Groups
+            </Link>
+          )}
           <Link href="/settings" className="transition hover:text-slate-950">
             Settings
           </Link>

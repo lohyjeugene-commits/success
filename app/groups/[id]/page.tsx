@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { joinGroup } from "@/app/supabase-test/actions";
 import { DisplayNameField } from "@/components/groups/display-name-field";
 import { CopyTextButton } from "@/components/ids/copy-text-button";
+import { ReliabilityBadge } from "@/components/users/reliability-display";
 import {
   getExistingTemporaryDisplayName,
   getExistingTemporaryUserId,
@@ -12,6 +13,7 @@ import {
   getDisplayNameForUser,
 } from "@/lib/supabase/auth";
 import { getGroupDetails } from "@/lib/supabase/group-details";
+import { getMultipleUserRatings } from "@/lib/supabase/reliability";
 import { createMeetupSlot, voteAvailability } from "./actions";
 
 type GroupDetailsPageProps = {
@@ -47,6 +49,14 @@ export default async function GroupDetailsPage({
   const joinError = getSearchParamValue(resolvedSearchParams.error);
   const { availabilityErrorMessage, errorMessage, group, members, slots } =
     await getGroupDetails(resolvedParams.id, currentUserId);
+
+  // Get ratings for members who have user IDs
+  const memberUserIds = members
+    .filter((m) => m.user_id)
+    .map((m) => m.user_id as string);
+  const memberRatings = memberUserIds.length > 0 
+    ? await getMultipleUserRatings(memberUserIds)
+    : new Map<string, number>();
 
   if (!errorMessage && !group) {
     notFound();
@@ -467,14 +477,24 @@ export default async function GroupDetailsPage({
                 </div>
               ) : (
                 <div className="mt-6 flex flex-wrap gap-3">
-                  {members.map((member) => (
-                    <span
-                      key={member.id}
-                      className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700"
-                    >
-                      {member.display_name}
-                    </span>
-                  ))}
+                  {members.map((member) => {
+                    const memberRating = member.user_id 
+                      ? memberRatings.get(member.user_id) ?? 5.0 
+                      : 5.0;
+                    return (
+                      <span
+                        key={member.id}
+                        className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700"
+                      >
+                        {member.display_name}
+                        {member.user_id && (
+                          <span className="ml-2">
+                            <ReliabilityBadge rating={memberRating} />
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </section>

@@ -42,13 +42,19 @@ function addMemberCounts(
   }));
 }
 
-export async function getActivityGroups(): Promise<ActivityGroupsResult> {
+export async function getActivityGroups(area?: string): Promise<ActivityGroupsResult> {
   const supabase = await createSupabaseServerClient();
 
-  const withLimitResult = await supabase
+  let query = supabase
     .from("activity_groups")
     .select("id, title, activity_type, area, max_members")
     .order("id", { ascending: false });
+
+  if (area && area !== "") {
+    query = query.eq("area", area);
+  }
+
+  const withLimitResult = await query;
 
   if (!withLimitResult.error) {
     const memberResult = await supabase.from("group_members").select("group_id");
@@ -76,10 +82,14 @@ export async function getActivityGroups(): Promise<ActivityGroupsResult> {
     };
   }
 
-  const fallbackResult = await supabase
+  let fallbackQuery = supabase
     .from("activity_groups")
     .select("id, title, activity_type, area")
     .order("id", { ascending: false });
+  if (area && area !== "") {
+    fallbackQuery = fallbackQuery.eq("area", area);
+  }
+  const fallbackResult = await fallbackQuery;
 
   if (fallbackResult.error) {
     return {

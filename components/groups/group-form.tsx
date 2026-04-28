@@ -1,3 +1,5 @@
+import { SINGAPORE_AREAS } from "@/lib/constants/singapore-areas";
+
 type GroupFormProps = {
   errorMessage?: string;
   message?: string;
@@ -76,14 +78,22 @@ export function GroupForm({
         >
           Area
         </label>
-        <input
+        <select
           id="area"
           name="area"
-          type="text"
-          placeholder="Punggol"
           required
-          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-        />
+          defaultValue=""
+          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+        >
+          <option value="" disabled>
+            Select an area
+          </option>
+          {SINGAPORE_AREAS.map((area) => (
+            <option key={area} value={area}>
+              {area}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-2">
