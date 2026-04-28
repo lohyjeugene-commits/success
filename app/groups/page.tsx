@@ -13,6 +13,7 @@ import { joinGroup } from "../supabase-test/actions";
 
 type GroupsPageProps = {
   searchParams: Promise<{
+    area?: string | string[];
     error?: string | string[];
     message?: string | string[];
   }>;
