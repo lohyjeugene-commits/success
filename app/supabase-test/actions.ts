@@ -4,6 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  isActivityCategory,
+  isActivityInCategory,
+  resolveActivityCategory,
+  type ActivityCategory,
+} from "@/lib/constants/activity-categories";
+import {
   getAuthenticatedUser,
   getDisplayNameForUser,
   requireAuthenticatedUser,
@@ -49,6 +55,41 @@ function getMaxMembersValue(formData: FormData) {
   return Number(rawValue);
 }
 
+function getSubmittedActivitySelection(formData: FormData) {
+  const submittedActivityCategory = getTextValue(formData, "activity_category");
+  const activityType = getTextValue(formData, "activity_type");
+
+  if (!activityType) {
+    return {
+      activityCategory: null,
+      activityType,
+      isValid: false,
+    };
+  }
+
+  if (!submittedActivityCategory) {
+    return {
+      activityCategory: resolveActivityCategory(null, activityType),
+      activityType,
+      isValid: true,
+    };
+  }
+
+  if (!isActivityCategory(submittedActivityCategory)) {
+    return {
+      activityCategory: null,
+      activityType,
+      isValid: false,
+    };
+  }
+
+  return {
+    activityCategory: submittedActivityCategory,
+    activityType,
+    isValid: isActivityInCategory(submittedActivityCategory, activityType),
+  };
+}
+
 function buildRedirectUrl(redirectTo: string, key: string, value: string) {
   const searchParams = new URLSearchParams({
     [key]: value,
@@ -74,6 +115,10 @@ function getRedirectConfig(
 
 function getAuthMigrationHintMessage() {
   return "Run the SQL in supabase/migrations/20260422_add_auth_profiles_permissions_and_dashboard.sql.";
+}
+
+function getActivityCategoryMigrationHintMessage() {
+  return "Run the SQL in supabase/migrations/20260430_add_activity_category_to_activity_groups.sql.";
 }
 
 function getSupabaseErrorMessage(
@@ -345,12 +390,14 @@ async function insertGroupMember(
 async function insertActivityGroup(
   supabase: SupabaseClient,
   {
+    activityCategory,
     activityType,
     area,
     maxMembers,
     title,
     userId,
   }: {
+    activityCategory: ActivityCategory;
     activityType: string;
     area: string;
     maxMembers: number;
@@ -359,12 +406,14 @@ async function insertActivityGroup(
   },
 ) {
   const insertPayload: {
+    activity_category?: ActivityCategory;
     activity_type: string;
     area: string;
     creator_user_id?: string;
     max_members?: number;
     title: string;
   } = {
+    activity_category: activityCategory,
     activity_type: activityType,
     area,
     creator_user_id: userId,
@@ -372,6 +421,7 @@ async function insertActivityGroup(
     title,
   };
 
+  let missingActivityCategory = false;
   let missingCreatorUserId = false;
   let missingMaxMembers = false;
 
@@ -386,9 +436,16 @@ async function insertActivityGroup(
       return {
         error: null,
         groupId: insertResult.data.id,
+        missingActivityCategory,
         missingCreatorUserId,
         missingMaxMembers,
       };
+    }
+
+    if (isMissingColumnError(insertResult.error, "activity_category")) {
+      delete insertPayload.activity_category;
+      missingActivityCategory = true;
+      continue;
     }
 
     if (isMissingColumnError(insertResult.error, "creator_user_id")) {
@@ -406,6 +463,7 @@ async function insertActivityGroup(
     return {
       error: insertResult.error,
       groupId: null,
+      missingActivityCategory,
       missingCreatorUserId,
       missingMaxMembers,
     };
@@ -414,7 +472,7 @@ async function insertActivityGroup(
 
 export async function createGroup(formData: FormData) {
   const title = getTextValue(formData, "title");
-  const activityType = getTextValue(formData, "activity_type");
+  const activitySelection = getSubmittedActivitySelection(formData);
   const area = getTextValue(formData, "area");
   const maxMembers = getMaxMembersValue(formData);
   const { errorKey, redirectTo, successKey } = getRedirectConfig(formData, {
@@ -423,8 +481,18 @@ export async function createGroup(formData: FormData) {
     successKey: "createMessage",
   });
 
-  if (!title || !activityType || !area) {
+  if (!title || !activitySelection.activityType || !area) {
     redirect(buildRedirectUrl(redirectTo, errorKey, "Please fill in all fields."));
+  }
+
+  if (!activitySelection.isValid || !activitySelection.activityCategory) {
+    redirect(
+      buildRedirectUrl(
+        redirectTo,
+        errorKey,
+        "Please choose a valid activity category and specific activity.",
+      ),
+    );
   }
 
   if (!isValidSingaporeArea(area)) {
@@ -443,7 +511,8 @@ export async function createGroup(formData: FormData) {
   });
   const supabase = await createSupabaseServerClient();
   const groupInsertResult = await insertActivityGroup(supabase, {
-    activityType,
+    activityCategory: activitySelection.activityCategory,
+    activityType: activitySelection.activityType,
     area,
     maxMembers,
     title,
@@ -491,10 +560,18 @@ export async function createGroup(formData: FormData) {
   }
 
   const warnings: string[] = [];
+  const needsActivityCategoryMigrationHint =
+    groupInsertResult.missingActivityCategory;
   const needsAuthMigrationHint =
     groupInsertResult.missingCreatorUserId ||
     membershipInsertResult.missingAuthUserId ||
     membershipInsertResult.missingRole;
+
+  if (groupInsertResult.missingActivityCategory) {
+    warnings.push(
+      "activity category was not saved because activity_category is missing.",
+    );
+  }
 
   if (groupInsertResult.missingMaxMembers) {
     warnings.push("max_members was not saved because the column is missing.");
@@ -516,10 +593,17 @@ export async function createGroup(formData: FormData) {
     warnings.push("group member role columns are missing.");
   }
 
+  const migrationHints = [
+    ...(needsActivityCategoryMigrationHint
+      ? [getActivityCategoryMigrationHintMessage()]
+      : []),
+    ...(needsAuthMigrationHint ? [getAuthMigrationHintMessage()] : []),
+  ];
+
   const successMessage =
     warnings.length > 0
       ? `Group created with fallback mode: ${warnings.join(" ")}${
-          needsAuthMigrationHint ? ` ${getAuthMigrationHintMessage()}` : ""
+          migrationHints.length > 0 ? ` ${migrationHints.join(" ")}` : ""
         }`
       : "Group created successfully.";
 

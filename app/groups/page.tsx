@@ -58,8 +58,8 @@ export default async function GroupsPage({
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-slate-600">
                 Browse activity groups from Supabase, including each group&apos;s
-                current size limit, and join one with a simple saved display
-                name.
+                category, specific activity, current size limit, and join one
+                with a simple saved display name.
               </p>
             </div>
           </div>

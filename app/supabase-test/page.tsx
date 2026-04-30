@@ -67,8 +67,8 @@ export default async function Page({ searchParams }: SupabaseTestPageProps) {
               Create Group
             </h2>
             <p className="text-sm text-slate-600">
-              Add a simple activity group with a title, activity type, area,
-              and a small size limit.
+              Add a simple activity group with a title, activity category,
+              specific activity, area, and a small size limit.
             </p>
           </div>
 

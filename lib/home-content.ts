@@ -4,7 +4,7 @@ export const launchSteps: LaunchStep[] = [
   {
     title: "Create or join a small activity group",
     description:
-      "Hosts can start a group with a title, activity type, area, and small member limit, while others can browse and join open spots.",
+      "Hosts can start a group with a title, activity category, specific activity, area, and small member limit, while others can browse and join open spots.",
   },
   {
     title: "Propose meetup times",

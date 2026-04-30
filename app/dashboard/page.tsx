@@ -182,8 +182,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 >
                   <div className="flex flex-wrap gap-2">
                     <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                      {group.activity_type}
+                      {group.activity_category}
                     </span>
+                    {group.activity_category !== group.activity_type ? (
+                      <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                        {group.activity_type}
+                      </span>
+                    ) : null}
                     {group.membership_role ? (
                       <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold capitalize text-emerald-700">
                         {group.membership_role}
@@ -243,8 +248,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     <div className="flex-1 space-y-4">
                       <div className="flex flex-wrap gap-2">
                         <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                          {slot.group_activity_type}
+                          {slot.group_activity_category}
                         </span>
+                        {slot.group_activity_category !==
+                        slot.group_activity_type ? (
+                          <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                            {slot.group_activity_type}
+                          </span>
+                        ) : null}
                         {slot.current_user_voted ? (
                           <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
                             You&apos;re available

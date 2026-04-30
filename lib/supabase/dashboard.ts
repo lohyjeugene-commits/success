@@ -1,6 +1,12 @@
+import type { ActivityCategory } from "@/lib/constants/activity-categories";
+import { resolveActivitySelection } from "@/lib/constants/activity-categories";
 import { createSupabaseServerClient } from "./server";
 import { getMembershipsForUser } from "./memberships";
-import { isMissingColumnError, isMissingTableError } from "./errors";
+import {
+  isMissingColumnError,
+  isMissingMaxMembersError,
+  isMissingTableError,
+} from "./errors";
 import type { ActivityGroupRow, MeetupSlotRow } from "@/types/group";
 
 export type JoinedGroupSummary = ActivityGroupRow & {
@@ -10,6 +16,7 @@ export type JoinedGroupSummary = ActivityGroupRow & {
 
 export type InvitedSlotSummary = MeetupSlotRow & {
   accepted_invite: boolean;
+  group_activity_category: ActivityCategory;
   group_activity_type: string;
   group_area: string;
   group_title: string;
@@ -17,6 +24,16 @@ export type InvitedSlotSummary = MeetupSlotRow & {
 
 type GroupBase = Omit<ActivityGroupRow, "current_member_count"> & {
   creator_user_id?: string | null;
+};
+
+type GroupRecord = {
+  area: string;
+  activity_category?: string | null;
+  activity_type: string | null;
+  creator_user_id?: string | null;
+  id: string;
+  max_members?: number | null;
+  title: string;
 };
 
 type SlotAcceptanceRow = {
@@ -33,6 +50,43 @@ type MeetupSlotBase = Omit<
   MeetupSlotRow,
   "availability_count" | "available_display_names" | "current_user_voted"
 >;
+
+function asGroupRecords(value: unknown): GroupRecord[] {
+  return (value ?? []) as GroupRecord[];
+}
+
+function asGroupIdRows(value: unknown): Array<{ group_id: string }> {
+  return (value ?? []) as Array<{ group_id: string }>;
+}
+
+function asMeetupSlotRows(value: unknown): MeetupSlotBase[] {
+  return (value ?? []) as MeetupSlotBase[];
+}
+
+function asAvailabilityVoteRows(value: unknown): AvailabilityVoteRow[] {
+  return (value ?? []) as AvailabilityVoteRow[];
+}
+
+function asSlotAcceptanceRows(value: unknown): SlotAcceptanceRow[] {
+  return (value ?? []) as SlotAcceptanceRow[];
+}
+
+function normalizeGroupRecord(group: GroupRecord): GroupBase {
+  const selection = resolveActivitySelection(
+    group.activity_category,
+    group.activity_type,
+  );
+
+  return {
+    area: group.area,
+    activity_category: selection.activity_category,
+    activity_type: selection.activity_type,
+    creator_user_id: group.creator_user_id ?? null,
+    id: group.id,
+    max_members: group.max_members ?? null,
+    title: group.title,
+  };
+}
 
 export async function getDashboardData(userId: string) {
   const supabase = await createSupabaseServerClient();
@@ -58,11 +112,28 @@ export async function getDashboardData(userId: string) {
 
   const groupsResult = await supabase
     .from("activity_groups")
-    .select("id, title, activity_type, area, max_members, creator_user_id")
+    .select(
+      "id, title, activity_category, activity_type, area, max_members, creator_user_id",
+    )
     .in("id", groupIds)
     .order("id", { ascending: false });
 
-  if (groupsResult.error && !isMissingColumnError(groupsResult.error, "max_members")) {
+  const missingActivityCategory = groupsResult.error
+    ? isMissingColumnError(groupsResult.error, "activity_category")
+    : false;
+  const missingMaxMembers = groupsResult.error
+    ? isMissingMaxMembersError(groupsResult.error)
+    : false;
+  const missingCreatorUserId = groupsResult.error
+    ? isMissingColumnError(groupsResult.error, "creator_user_id")
+    : false;
+
+  if (
+    groupsResult.error &&
+    !missingActivityCategory &&
+    !missingMaxMembers &&
+    !missingCreatorUserId
+  ) {
     return {
       errorMessage: `Could not load joined groups: ${groupsResult.error.message}`,
       joinedGroups: [] as JoinedGroupSummary[],
@@ -71,10 +142,20 @@ export async function getDashboardData(userId: string) {
   }
 
   const fallbackGroupsResult =
-    groupsResult.error && isMissingColumnError(groupsResult.error, "max_members")
+    groupsResult.error
       ? await supabase
           .from("activity_groups")
-          .select("id, title, activity_type, area, creator_user_id")
+          .select(
+            [
+              "id",
+              "title",
+              ...(missingActivityCategory ? [] : ["activity_category"]),
+              "activity_type",
+              "area",
+              ...(missingMaxMembers ? [] : ["max_members"]),
+              ...(missingCreatorUserId ? [] : ["creator_user_id"]),
+            ].join(", "),
+          )
           .in("id", groupIds)
           .order("id", { ascending: false })
       : null;
@@ -87,13 +168,9 @@ export async function getDashboardData(userId: string) {
     };
   }
 
-  const groups = (
-    groupsResult.data ??
-    (fallbackGroupsResult?.data ?? []).map((group) => ({
-      ...group,
-      max_members: null,
-    }))
-  ) as GroupBase[];
+  const groups = asGroupRecords(groupsResult.data ?? fallbackGroupsResult?.data).map(
+    normalizeGroupRecord,
+  );
 
   const memberResult = await supabase
     .from("group_members")
@@ -110,7 +187,7 @@ export async function getDashboardData(userId: string) {
 
   const memberCountMap = new Map<string, number>();
 
-  for (const member of (memberResult.data ?? []) as { group_id: string }[]) {
+  for (const member of asGroupIdRows(memberResult.data)) {
     memberCountMap.set(
       member.group_id,
       (memberCountMap.get(member.group_id) ?? 0) + 1,
@@ -152,7 +229,7 @@ export async function getDashboardData(userId: string) {
     };
   }
 
-  const slots = (slotsResult.data ?? []) as MeetupSlotBase[];
+  const slots = asMeetupSlotRows(slotsResult.data);
 
   if (slots.length === 0) {
     return {
@@ -194,7 +271,7 @@ export async function getDashboardData(userId: string) {
   const userAvailableSlotIds = new Set<string>();
   const availableUserIdsBySlot = new Map<string, string[]>();
 
-  for (const vote of (voteResult.data ?? []) as AvailabilityVoteRow[]) {
+  for (const vote of asAvailabilityVoteRows(voteResult.data)) {
     voteCounts.set(vote.slot_id, (voteCounts.get(vote.slot_id) ?? 0) + 1);
 
     const displayUserId = vote.user_id || vote.auth_user_id || "Unknown user";
@@ -207,7 +284,7 @@ export async function getDashboardData(userId: string) {
   }
 
   const acceptedSlotIds = new Set(
-    ((acceptanceResult.data ?? []) as SlotAcceptanceRow[]).map((row) => row.slot_id),
+    asSlotAcceptanceRows(acceptanceResult.data).map((row) => row.slot_id),
   );
   const groupsMap = new Map(joinedGroups.map((group) => [group.id, group]));
 
@@ -224,6 +301,7 @@ export async function getDashboardData(userId: string) {
         accepted_invite: acceptedSlotIds.has(slot.id),
         availability_count: voteCounts.get(slot.id) ?? 0,
         available_display_names: availableUserIdsBySlot.get(slot.id) ?? [],
+        group_activity_category: group.activity_category,
         current_user_voted: userAvailableSlotIds.has(slot.id),
         group_activity_type: group.activity_type,
         group_area: group.area,

@@ -1,119 +1,229 @@
-import { createSupabaseServerClient } from "./server";
+import { resolveActivitySelection } from "@/lib/constants/activity-categories";
 import type { ActivityGroupRow } from "@/types/group";
+import { isMissingColumnError, isMissingMaxMembersError } from "./errors";
+import { createSupabaseServerClient } from "./server";
 
 export type MatchPreference = {
+  activityCategory?: string;
   activityType?: string;
   area?: string;
   preferredSize?: number;
 };
 
 type MatchedGroup = ActivityGroupRow & {
-  matchScore: number;
   matchReason: string;
+  matchScore: number;
 };
 
+type ActivityGroupRecord = {
+  area: string;
+  activity_category?: string | null;
+  activity_type: string | null;
+  id: string;
+  max_members?: number | null;
+  title: string;
+};
+
+type GroupMemberRow = {
+  group_id: string;
+};
+
+function asActivityGroupRecords(value: unknown): ActivityGroupRecord[] {
+  return (value ?? []) as ActivityGroupRecord[];
+}
+
+function asGroupMemberRows(value: unknown): GroupMemberRow[] {
+  return (value ?? []) as GroupMemberRow[];
+}
+
+function normalizeActivityGroup(
+  group: ActivityGroupRecord,
+  currentMemberCount: number,
+): ActivityGroupRow {
+  const selection = resolveActivitySelection(
+    group.activity_category,
+    group.activity_type,
+  );
+
+  return {
+    area: group.area,
+    activity_category: selection.activity_category,
+    activity_type: selection.activity_type,
+    current_member_count: currentMemberCount,
+    id: group.id,
+    max_members: group.max_members ?? null,
+    title: group.title,
+  };
+}
+
 export async function findMatchingGroups(
-  preference: MatchPreference
+  preference: MatchPreference,
 ): Promise<{ groups: MatchedGroup[]; error: string | null }> {
   const supabase = await createSupabaseServerClient();
-  
-  // Build base query
-  let query = supabase
+
+  let withOptionalColumnsQuery = supabase
     .from("activity_groups")
-    .select("id, title, activity_type, area, max_members");
-  
-  // Apply filters
-  if (preference.activityType && preference.activityType.trim() !== "") {
-    query = query.ilike("activity_type", `%${preference.activityType.trim()}%`);
-  }
-  
+    .select("id, title, activity_category, activity_type, area, max_members");
+
   if (preference.area && preference.area.trim() !== "") {
-    query = query.eq("area", preference.area.trim());
+    withOptionalColumnsQuery = withOptionalColumnsQuery.eq(
+      "area",
+      preference.area.trim(),
+    );
   }
-  
-  const result = await query;
-  
-  if (result.error) {
-    return { groups: [], error: result.error.message };
+
+  const withOptionalColumnsResult = await withOptionalColumnsQuery;
+  let rawGroups: ActivityGroupRecord[] = [];
+
+  if (!withOptionalColumnsResult.error) {
+    rawGroups = asActivityGroupRecords(withOptionalColumnsResult.data);
+  } else {
+    const missingActivityCategory = isMissingColumnError(
+      withOptionalColumnsResult.error,
+      "activity_category",
+    );
+    const missingMaxMembers = isMissingMaxMembersError(
+      withOptionalColumnsResult.error,
+    );
+
+    if (!missingActivityCategory && !missingMaxMembers) {
+      return { groups: [], error: withOptionalColumnsResult.error.message };
+    }
+
+    const fallbackFields = [
+      "id",
+      "title",
+      ...(missingActivityCategory ? [] : ["activity_category"]),
+      "activity_type",
+      "area",
+      ...(missingMaxMembers ? [] : ["max_members"]),
+    ].join(", ");
+
+    let fallbackQuery = supabase
+      .from("activity_groups")
+      .select(fallbackFields);
+
+    if (preference.area && preference.area.trim() !== "") {
+      fallbackQuery = fallbackQuery.eq("area", preference.area.trim());
+    }
+
+    const fallbackResult = await fallbackQuery;
+
+    if (fallbackResult.error) {
+      return { groups: [], error: fallbackResult.error.message };
+    }
+
+    rawGroups = asActivityGroupRecords(fallbackResult.data);
   }
-  
-  // Get member counts
-  const memberResult = await supabase
-    .from("group_members")
-    .select("group_id");
-  
+
+  const memberResult = await supabase.from("group_members").select("group_id");
+
   if (memberResult.error) {
     return { groups: [], error: memberResult.error.message };
   }
-  
-  // Calculate member counts per group
+
   const memberCounts = new Map<string, number>();
-  for (const m of memberResult.data ?? []) {
+
+  for (const member of asGroupMemberRows(memberResult.data)) {
     memberCounts.set(
-      m.group_id,
-      (memberCounts.get(m.group_id) ?? 0) + 1
+      member.group_id,
+      (memberCounts.get(member.group_id) ?? 0) + 1,
     );
   }
-  
-  // Add member counts and filter for available spots
-  const groupsWithCounts: ActivityGroupRow[] = (result.data ?? []).map(g => ({
-    ...g,
-    current_member_count: memberCounts.get(g.id) ?? 0
-  })).filter(g => 
-    g.max_members === null || g.current_member_count < g.max_members
-  );
-  
-  // Score and sort groups
-  const scoredGroups = groupsWithCounts.map(group => {
+
+  const normalizedActivityCategory = preference.activityCategory?.trim();
+  const normalizedActivityType = preference.activityType?.trim().toLowerCase();
+  const filteredGroups = rawGroups
+    .map((group) =>
+      normalizeActivityGroup(group, memberCounts.get(group.id) ?? 0),
+    )
+    .filter((group) => {
+      if (
+        group.max_members !== null &&
+        group.current_member_count >= group.max_members
+      ) {
+        return false;
+      }
+
+      if (
+        normalizedActivityCategory &&
+        group.activity_category !== normalizedActivityCategory
+      ) {
+        return false;
+      }
+
+      if (
+        normalizedActivityType &&
+        group.activity_type.toLowerCase() !== normalizedActivityType
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+  const scoredGroups = filteredGroups.map((group) => {
     let score = 0;
     const reasons: string[] = [];
-    
-    // Prefer groups closer to full (but not full)
+
     if (group.max_members !== null) {
       const fillRatio = group.current_member_count / group.max_members;
+
       if (fillRatio >= 0.5 && fillRatio < 1) {
         score += 30 * fillRatio;
         reasons.push("Almost full");
       }
     }
-    
-    // Prefer groups with more members
+
     score += group.current_member_count * 5;
+
     if (group.current_member_count > 0) {
-      reasons.push(`${group.current_member_count} member${group.current_member_count > 1 ? 's' : ''}`);
+      reasons.push(
+        `${group.current_member_count} member${
+          group.current_member_count > 1 ? "s" : ""
+        }`,
+      );
     }
-    
-    // Prefer exact size match
-    if (preference.preferredSize && group.max_members === preference.preferredSize) {
+
+    if (
+      preference.preferredSize &&
+      group.max_members === preference.preferredSize
+    ) {
       score += 20;
       reasons.push("Perfect size");
     }
-    
-    // Bonus for exact activity match
-    if (preference.activityType && 
-        group.activity_type.toLowerCase() === preference.activityType.toLowerCase().trim()) {
+
+    if (
+      normalizedActivityCategory &&
+      group.activity_category === normalizedActivityCategory
+    ) {
+      score += 10;
+      reasons.push("Right category");
+    }
+
+    if (
+      normalizedActivityType &&
+      group.activity_type.toLowerCase() === normalizedActivityType
+    ) {
       score += 15;
       reasons.push("Exact activity");
     }
-    
-    // Bonus for exact area match
-    if (preference.area && group.area === preference.area) {
+
+    if (preference.area && group.area === preference.area.trim()) {
       score += 10;
     }
-    
+
     return {
       ...group,
+      matchReason: reasons.join(", ") || "Available group",
       matchScore: score,
-      matchReason: reasons.join(", ") || "Available group"
     };
   });
-  
-  // Sort by score descending
+
   scoredGroups.sort((a, b) => b.matchScore - a.matchScore);
-  
-  // Return top 10 matches
-  return { 
-    groups: scoredGroups.slice(0, 10), 
-    error: null 
+
+  return {
+    groups: scoredGroups.slice(0, 10),
+    error: null,
   };
 }

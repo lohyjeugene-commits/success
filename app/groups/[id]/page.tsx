@@ -71,6 +71,9 @@ export default async function GroupDetailsPage({
     group && group.max_members !== null
       ? Math.max(group.max_members - group.current_member_count, 0)
       : null;
+  const showSeparateActivityBadge = Boolean(
+    group && group.activity_category !== group.activity_type,
+  );
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 sm:px-8">
@@ -123,8 +126,13 @@ export default async function GroupDetailsPage({
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-2">
                       <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                        {group.activity_type}
+                        {group.activity_category}
                       </span>
+                      {showSeparateActivityBadge ? (
+                        <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
+                          {group.activity_type}
+                        </span>
+                      ) : null}
                       <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
                         {group.area}
                       </span>

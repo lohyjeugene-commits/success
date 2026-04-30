@@ -37,7 +37,8 @@ export default async function CreateGroupPage({
             <p className="max-w-2xl text-sm leading-6 text-slate-600">
               Add a new activity group to Supabase with the same working create
               logic used in the test page. You&apos;ll need to be logged in so
-              the app can store the group creator and admin permissions.
+              the app can store the group creator, activity category, and admin
+              permissions.
             </p>
           </div>
         </div>
@@ -48,8 +49,9 @@ export default async function CreateGroupPage({
               New activity group
             </h2>
             <p className="text-sm text-slate-600">
-              Fill in the details below, choose a small group size limit, then
-              view the result on the Groups page.
+              Fill in the details below, pick an activity category and specific
+              activity, choose a small group size limit, then view the result
+              on the Groups page.
             </p>
           </div>
 

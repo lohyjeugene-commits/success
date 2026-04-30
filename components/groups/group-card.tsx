@@ -18,8 +18,9 @@ export function GroupCard({ actionSlot, group, href }: GroupCardProps) {
     <>
       <h3 className="text-base font-semibold text-slate-950">{group.title}</h3>
       <p className="mt-2 text-sm text-slate-600">
-        Activity: {group.activity_type}
+        Category: {group.activity_category}
       </p>
+      <p className="text-sm text-slate-600">Activity: {group.activity_type}</p>
       <p className="text-sm text-slate-600">Area: {group.area}</p>
       <p className="text-sm text-slate-600">
         Current members: {group.current_member_count}

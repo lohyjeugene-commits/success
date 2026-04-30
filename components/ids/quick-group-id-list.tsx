@@ -1,9 +1,10 @@
 import type { ActivityGroupRow } from "@/types/group";
+import { formatActivitySummary } from "@/lib/constants/activity-categories";
 import { CopyTextButton } from "./copy-text-button";
 
 type QuickGroupIdListItem = Pick<
   ActivityGroupRow,
-  "activity_type" | "area" | "id" | "title"
+  "activity_category" | "activity_type" | "area" | "id" | "title"
 >;
 
 type QuickGroupIdListProps = {
@@ -47,7 +48,11 @@ export function QuickGroupIdList({
                   {group.title}
                 </p>
                 <p className="text-sm text-slate-600">
-                  {group.activity_type} in {group.area}
+                  {formatActivitySummary(
+                    group.activity_category,
+                    group.activity_type,
+                  )}{" "}
+                  in {group.area}
                 </p>
               </div>
 

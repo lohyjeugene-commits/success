@@ -1,6 +1,9 @@
+import type { ActivityCategory } from "@/lib/constants/activity-categories";
+
 export type ActivityGroupRow = {
   id: string;
   title: string;
+  activity_category: ActivityCategory;
   activity_type: string;
   area: string;
   current_member_count: number;

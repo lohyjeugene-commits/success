@@ -1,4 +1,5 @@
 import { SINGAPORE_AREAS } from "@/lib/constants/singapore-areas";
+import { ActivityPicker } from "./activity-picker";
 
 type GroupFormProps = {
   errorMessage?: string;
@@ -54,22 +55,7 @@ export function GroupForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <label
-          htmlFor="activity_type"
-          className="block text-sm font-medium text-slate-700"
-        >
-          Activity Type
-        </label>
-        <input
-          id="activity_type"
-          name="activity_type"
-          type="text"
-          placeholder="Basketball"
-          required
-          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-        />
-      </div>
+      <ActivityPicker />
 
       <div className="space-y-2">
         <label

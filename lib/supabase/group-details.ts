@@ -1,10 +1,15 @@
+import { resolveActivitySelection } from "@/lib/constants/activity-categories";
 import { createSupabaseServerClient } from "./server";
 import type {
   ActivityGroupRow,
   GroupMemberIdentifier,
   MeetupSlotRow,
 } from "@/types/group";
-import { isMissingColumnError, isMissingTableError } from "./errors";
+import {
+  isMissingColumnError,
+  isMissingMaxMembersError,
+  isMissingTableError,
+} from "./errors";
 import { formatTemporaryUserLabel } from "@/lib/server/temporary-user";
 
 type GroupDetailsResult = {
@@ -16,7 +21,14 @@ type GroupDetailsResult = {
 };
 
 type GroupBase = Omit<ActivityGroupRow, "current_member_count">;
-type GroupWithoutLimit = Omit<GroupBase, "max_members">;
+type GroupRecord = {
+  area: string;
+  activity_category?: string | null;
+  activity_type: string | null;
+  id: string;
+  max_members?: number | null;
+  title: string;
+};
 
 type GroupMemberRow = {
   id: string;
@@ -39,6 +51,26 @@ type AvailabilityVoteRow = {
   slot_id: string;
   user_id: string | null;
 };
+
+function asGroupRecord(value: unknown): GroupRecord | null {
+  return (value ?? null) as GroupRecord | null;
+}
+
+function asGroupMemberRows(value: unknown): GroupMemberRow[] {
+  return (value ?? []) as GroupMemberRow[];
+}
+
+function asGroupMemberIdOnlyRows(value: unknown): GroupMemberIdOnly[] {
+  return (value ?? []) as GroupMemberIdOnly[];
+}
+
+function asMeetupSlotRows(value: unknown): MeetupSlotBase[] {
+  return (value ?? []) as MeetupSlotBase[];
+}
+
+function asAvailabilityVoteRows(value: unknown): AvailabilityVoteRow[] {
+  return (value ?? []) as AvailabilityVoteRow[];
+}
 
 function getResolvedMemberDisplayName(
   userId: string | null | undefined,
@@ -78,6 +110,22 @@ function mapGroupMembers(rows: GroupMemberRow[]) {
   });
 }
 
+function normalizeGroupBase(group: GroupRecord): GroupBase {
+  const selection = resolveActivitySelection(
+    group.activity_category,
+    group.activity_type,
+  );
+
+  return {
+    area: group.area,
+    activity_category: selection.activity_category,
+    activity_type: selection.activity_type,
+    id: group.id,
+    max_members: group.max_members ?? null,
+    title: group.title,
+  };
+}
+
 async function getGroupMembers(groupId: string): Promise<{
   errorMessage: string | null;
   members: GroupMemberIdentifier[];
@@ -92,9 +140,7 @@ async function getGroupMembers(groupId: string): Promise<{
   if (!withAllNameColumnsResult.error) {
     return {
       errorMessage: null,
-      members: mapGroupMembers(
-        (withAllNameColumnsResult.data ?? []) as GroupMemberRow[],
-      ),
+      members: mapGroupMembers(asGroupMemberRows(withAllNameColumnsResult.data)),
     };
   }
 
@@ -119,9 +165,7 @@ async function getGroupMembers(groupId: string): Promise<{
   if (!withDisplayNameResult.error) {
     return {
       errorMessage: null,
-      members: mapGroupMembers(
-        (withDisplayNameResult.data ?? []) as GroupMemberRow[],
-      ),
+      members: mapGroupMembers(asGroupMemberRows(withDisplayNameResult.data)),
     };
   }
 
@@ -145,7 +189,7 @@ async function getGroupMembers(groupId: string): Promise<{
   if (!withNameResult.error) {
     return {
       errorMessage: null,
-      members: mapGroupMembers((withNameResult.data ?? []) as GroupMemberRow[]),
+      members: mapGroupMembers(asGroupMemberRows(withNameResult.data)),
     };
   }
 
@@ -175,13 +219,11 @@ async function getGroupMembers(groupId: string): Promise<{
 
   return {
     errorMessage: null,
-    members: ((idOnlyResult.data ?? []) as GroupMemberIdOnly[]).map(
-      (member) => ({
+    members: asGroupMemberIdOnlyRows(idOnlyResult.data).map((member) => ({
         display_name: formatTemporaryUserLabel(member.id, null),
         id: member.id,
         user_id: member.id,
-      }),
-    ),
+      })),
   };
 }
 
@@ -210,7 +252,7 @@ async function getMeetupSlots(
     };
   }
 
-  const slots = (slotResult.data ?? []) as MeetupSlotBase[];
+  const slots = asMeetupSlotRows(slotResult.data);
 
   if (slots.length === 0) {
     return {
@@ -245,7 +287,7 @@ async function getMeetupSlots(
   const userIdsBySlot = new Map<string, string[]>();
   const currentUserVotes = new Set<string>();
 
-  for (const vote of (voteResult.data ?? []) as AvailabilityVoteRow[]) {
+  for (const vote of asAvailabilityVoteRows(voteResult.data)) {
     voteCounts.set(vote.slot_id, (voteCounts.get(vote.slot_id) ?? 0) + 1);
 
     const userId = vote.user_id || vote.auth_user_id || "Unknown user";
@@ -277,29 +319,43 @@ async function getGroupBase(groupId: string): Promise<{
 }> {
   const supabase = await createSupabaseServerClient();
 
-  const withLimitResult = await supabase
+  const withOptionalColumnsResult = await supabase
     .from("activity_groups")
-    .select("id, title, activity_type, area, max_members")
+    .select("id, title, activity_category, activity_type, area, max_members")
     .eq("id", groupId)
     .maybeSingle();
 
-  if (!withLimitResult.error) {
+  if (!withOptionalColumnsResult.error) {
     return {
       errorMessage: null,
-      group: (withLimitResult.data ?? null) as GroupBase | null,
+      group: normalizeGroupBase(asGroupRecord(withOptionalColumnsResult.data)!),
     };
   }
 
-  if (!isMissingColumnError(withLimitResult.error, "max_members")) {
+  const missingActivityCategory = isMissingColumnError(
+    withOptionalColumnsResult.error,
+    "activity_category",
+  );
+  const missingMaxMembers = isMissingMaxMembersError(withOptionalColumnsResult.error);
+
+  if (!missingActivityCategory && !missingMaxMembers) {
     return {
-      errorMessage: `Could not load group: ${withLimitResult.error.message}`,
+      errorMessage: `Could not load group: ${withOptionalColumnsResult.error.message}`,
       group: null,
     };
   }
 
+  const fallbackFields = [
+    "id",
+    "title",
+    ...(missingActivityCategory ? [] : ["activity_category"]),
+    "activity_type",
+    "area",
+    ...(missingMaxMembers ? [] : ["max_members"]),
+  ].join(", ");
   const fallbackResult = await supabase
     .from("activity_groups")
-    .select("id, title, activity_type, area")
+    .select(fallbackFields)
     .eq("id", groupId)
     .maybeSingle();
 
@@ -319,10 +375,7 @@ async function getGroupBase(groupId: string): Promise<{
 
   return {
     errorMessage: null,
-    group: {
-      ...((fallbackResult.data ?? null) as GroupWithoutLimit),
-      max_members: null,
-    },
+    group: normalizeGroupBase(asGroupRecord(fallbackResult.data)!),
   };
 }
 
