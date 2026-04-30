@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { CopyTextButton } from "@/components/ids/copy-text-button";
-import { ProfilePictureSection } from "@/components/profile/profile-picture-section";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 import {
   ensureProfileForUser,
@@ -136,34 +135,40 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </div>
 
           <form action={updateProfile} className="mt-6 grid gap-5 md:grid-cols-2">
-            <div className="md:col-span-2 mb-6">
-  <label className="block text-sm font-medium mb-2">
-    Profile picture
-  </label>
+            <div className="mb-6 md:col-span-2">
+              <label className="mb-2 block text-sm font-medium">
+                Profile picture
+              </label>
 
-  <div className="flex items-center gap-4">
-    <img
-      src={profile?.profile_picture_url || "/default-avatar.png"}
-      alt="avatar"
-      className="w-16 h-16 rounded-full object-cover border"
-    />
+              <div className="flex items-center gap-4">
+                <img
+                  src={profile?.profile_picture_url || "/default-avatar.png"}
+                  alt="avatar"
+                  className="h-16 w-16 rounded-full border object-cover"
+                />
 
-   <input
-  type="file"
-  accept="image/*"
-  disabled
-  className="text-sm text-slate-500"
-/>
-<p className="text-xs text-slate-500">
-  Image upload will be connected later. For now, use the avatar emoji.
-</p>
-    />
-  </div>
-</div>
-            
+                <div className="space-y-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled
+                    className="text-sm text-slate-500"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Image upload will be connected later. For now, use the
+                    avatar emoji.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-2">
-          
+              <label
+                htmlFor="full_name"
+                className="block text-sm font-medium text-slate-700"
+              >
+                Full name
+              </label>
               <input
                 id="full_name"
                 name="full_name"
