@@ -36,6 +36,9 @@ export async function SiteHeader() {
               <Link href="/dashboard" className="transition hover:text-slate-950">
                 Dashboard
               </Link>
+              <Link href="/your-ids" className="transition hover:text-slate-950">
+                Your IDs
+              </Link>
               <Link href="/profile" className="transition hover:text-slate-950">
                 Profile
               </Link>
@@ -69,6 +72,9 @@ export async function SiteHeader() {
             <>
               <Link href="/dashboard" className="transition hover:text-slate-950">
                 Dashboard
+              </Link>
+              <Link href="/your-ids" className="transition hover:text-slate-950">
+                Your IDs
               </Link>
               <Link href="/profile" className="transition hover:text-slate-950">
                 Profile

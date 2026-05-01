@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { IdMetadataRow } from "@/components/ids/id-metadata-row";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 import {
   ensureProfileForUser,
@@ -44,28 +43,16 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </Link>
 
           <div className="rounded-3xl border border-slate-200 bg-white px-7 py-8 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-3">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                  Public profile
-                </p>
-                <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
-                  Edit your member profile
-                </h1>
-                <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                  Your profile is publicly readable so other TouchGrass members can
-                  see who they are meeting.
-                </p>
-              </div>
-
-              <IdMetadataRow
-                align="end"
-                className="lg:max-w-sm lg:pt-1"
-                inline
-                label="Auth user ID"
-                value={user.id}
-              />
-            </div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
+              Public profile
+            </p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
+              Edit your member profile
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+              Your profile is publicly readable so other TouchGrass members can
+              see who they are meeting.
+            </p>
           </div>
         </div>
 

@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { deleteManagedGroups } from "./actions";
 import { acceptSlotInvite, voteAvailability } from "@/app/groups/[id]/actions";
-import { IdMetadataRow } from "@/components/ids/id-metadata-row";
-import { QuickGroupIdList } from "@/components/ids/quick-group-id-list";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 import { getDashboardData } from "@/lib/supabase/dashboard";
 import { ensureProfileForUser } from "@/lib/supabase/profiles";
@@ -48,33 +46,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     <main className="min-h-screen bg-slate-50 px-6 py-10 sm:px-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <section className="rounded-3xl border border-slate-200 bg-white px-7 py-8 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                Member dashboard
-              </p>
-              <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
-                Your TouchGrass activity hub
-              </h1>
-              <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                See the groups you joined, track which meetup slots you are invited
-                to, and accept event invites when the timing works for you.
-              </p>
-            </div>
-
-            <div className="space-y-2 lg:pt-1">
-              <IdMetadataRow
-                align="end"
-                className="lg:max-w-sm"
-                inline
-                label="Auth user ID"
-                value={user.id}
-              />
-              <p className="text-sm text-slate-500 lg:text-right">
-                {user.email ?? "No email available"}
-              </p>
-            </div>
-          </div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
+            Member dashboard
+          </p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
+            Your TouchGrass activity hub
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            See the groups you joined, track which meetup slots you are invited
+            to, and accept event invites when the timing works for you.
+          </p>
 
           <div className="mt-6">
             <ReliabilityDisplay rating={userRating} />
@@ -98,12 +79,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             {dashboardResult.errorMessage}
           </div>
         ) : null}
-
-        <QuickGroupIdList
-          groups={dashboardResult.joinedGroups}
-          title="Group IDs for every group you joined"
-          description="Use these exact group IDs for SQL role updates, group lookups, and admin actions. You do not need to open each group page to find them."
-        />
 
         {managedGroupCount > 0 ? (
           <section className="rounded-3xl border border-rose-200 bg-rose-50 p-7 shadow-sm">
