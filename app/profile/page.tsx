@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CopyTextButton } from "@/components/ids/copy-text-button";
+import { IdMetadataRow } from "@/components/ids/id-metadata-row";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 import {
   ensureProfileForUser,
@@ -75,11 +75,11 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </div>
         ) : null}
 
-        <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-7 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                SQL / Admin IDs
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Account metadata
               </p>
               <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
                 Your auth user ID
@@ -91,24 +91,20 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
               </p>
             </div>
 
-            <CopyTextButton text={user.id} />
+            <IdMetadataRow
+              align="end"
+              className="lg:max-w-xs"
+              label="Auth user ID"
+              value={user.id}
+            />
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
-            <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Auth user ID
-              </p>
-              <code className="mt-3 block break-all rounded-2xl bg-slate-950 px-4 py-4 text-base font-medium text-white">
-                {user.id}
-              </code>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-4">
+          <div className="mt-6">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 Account email
               </p>
-              <p className="mt-3 break-all text-sm text-slate-900">
+              <p className="mt-2 break-all text-sm text-slate-900">
                 {user.email ?? "No email available"}
               </p>
             </div>

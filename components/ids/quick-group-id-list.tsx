@@ -1,6 +1,6 @@
 import type { ActivityGroupRow } from "@/types/group";
 import { formatActivitySummary } from "@/lib/constants/activity-categories";
-import { CopyTextButton } from "./copy-text-button";
+import { IdMetadataRow } from "./id-metadata-row";
 
 type QuickGroupIdListItem = Pick<
   ActivityGroupRow,
@@ -23,9 +23,9 @@ export function QuickGroupIdList({
   }
 
   return (
-    <section className="rounded-3xl border border-sky-200 bg-sky-50 p-7 shadow-sm">
+    <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
           Quick IDs
         </p>
         <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
@@ -36,15 +36,15 @@ export function QuickGroupIdList({
         </p>
       </div>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 space-y-3">
         {groups.map((group) => (
           <div
             key={group.id}
-            className="rounded-2xl border border-sky-200 bg-white px-5 py-4"
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
-                <p className="text-base font-semibold text-slate-950">
+                <p className="text-sm font-semibold text-slate-950">
                   {group.title}
                 </p>
                 <p className="text-sm text-slate-600">
@@ -56,12 +56,13 @@ export function QuickGroupIdList({
                 </p>
               </div>
 
-              <CopyTextButton text={group.id} />
+              <IdMetadataRow
+                align="end"
+                className="sm:max-w-xs"
+                label="Group ID"
+                value={group.id}
+              />
             </div>
-
-            <code className="mt-4 block break-all rounded-2xl bg-slate-950 px-4 py-4 text-sm font-medium text-white">
-              {group.id}
-            </code>
           </div>
         ))}
       </div>

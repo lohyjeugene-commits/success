@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { joinGroup } from "@/app/supabase-test/actions";
 import { DisplayNameField } from "@/components/groups/display-name-field";
-import { CopyTextButton } from "@/components/ids/copy-text-button";
+import { IdMetadataRow } from "@/components/ids/id-metadata-row";
 import { ReliabilityBadge } from "@/components/users/reliability-display";
 import {
   getExistingTemporaryDisplayName,
@@ -149,24 +149,11 @@ export default async function GroupDetailsPage({
                         Keep this group lightweight and easy to coordinate with
                         a simple member list and meetup slot voting.
                       </p>
-                      <div className="max-w-2xl rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="space-y-1">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
-                              Group ID
-                            </p>
-                            <p className="text-sm text-slate-600">
-                              Use this exact value for SQL role updates or admin checks.
-                            </p>
-                          </div>
-
-                          <CopyTextButton text={group.id} />
-                        </div>
-
-                        <code className="mt-4 block break-all rounded-2xl bg-white px-4 py-4 text-sm font-medium text-slate-900">
-                          {group.id}
-                        </code>
-                      </div>
+                      <IdMetadataRow
+                        className="max-w-2xl"
+                        label="Group ID"
+                        value={group.id}
+                      />
                     </div>
                   </div>
 

@@ -4,9 +4,15 @@ import { useRef, useState } from "react";
 
 type CopyTextButtonProps = {
   text: string;
+  label?: string;
+  onCopied?: () => void;
 };
 
-export function CopyTextButton({ text }: CopyTextButtonProps) {
+export function CopyTextButton({
+  text,
+  label = "Copy",
+  onCopied,
+}: CopyTextButtonProps) {
   const resetTimerRef = useRef<number | null>(null);
   const [status, setStatus] = useState<"idle" | "copied" | "error">("idle");
 
@@ -18,6 +24,7 @@ export function CopyTextButton({ text }: CopyTextButtonProps) {
     try {
       await navigator.clipboard.writeText(text);
       setStatus("copied");
+      onCopied?.();
     } catch {
       setStatus("error");
     }
@@ -32,9 +39,9 @@ export function CopyTextButton({ text }: CopyTextButtonProps) {
     <button
       type="button"
       onClick={handleCopy}
-      className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+      className="inline-flex shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
     >
-      {status === "copied" ? "Copied" : status === "error" ? "Try again" : "Copy ID"}
+      {status === "copied" ? "Copied" : status === "error" ? "Retry" : label}
     </button>
   );
 }
