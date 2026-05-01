@@ -48,54 +48,36 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     <main className="min-h-screen bg-slate-50 px-6 py-10 sm:px-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <section className="rounded-3xl border border-slate-200 bg-white px-7 py-8 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
-            Member dashboard
-          </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-            Your TouchGrass activity hub
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            See the groups you joined, track which meetup slots you are invited
-            to, and accept event invites when the timing works for you.
-          </p>
-
-          <div className="mt-6">
-            <ReliabilityDisplay rating={userRating} />
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Account metadata
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                Member dashboard
               </p>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                Your auth user ID
-              </h2>
-              <p className="max-w-2xl text-sm leading-6 text-slate-700">
-                This is the exact user ID to use when you update your role in
-                Supabase SQL or inspect your membership rows.
+              <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
+                Your TouchGrass activity hub
+              </h1>
+              <p className="max-w-2xl text-sm leading-6 text-slate-600">
+                See the groups you joined, track which meetup slots you are invited
+                to, and accept event invites when the timing works for you.
               </p>
             </div>
 
-            <IdMetadataRow
-              align="end"
-              className="lg:max-w-xs"
-              label="Auth user ID"
-              value={user.id}
-            />
-          </div>
-
-          <div className="mt-6">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Account email
-              </p>
-              <p className="mt-2 break-all text-sm text-slate-900">
+            <div className="space-y-2 lg:pt-1">
+              <IdMetadataRow
+                align="end"
+                className="lg:max-w-sm"
+                inline
+                label="Auth user ID"
+                value={user.id}
+              />
+              <p className="text-sm text-slate-500 lg:text-right">
                 {user.email ?? "No email available"}
               </p>
             </div>
+          </div>
+
+          <div className="mt-6">
+            <ReliabilityDisplay rating={userRating} />
           </div>
         </section>
 

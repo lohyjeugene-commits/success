@@ -8,6 +8,7 @@ type IdMetadataRowProps = {
   value: string;
   align?: "start" | "end";
   className?: string;
+  inline?: boolean;
 };
 
 function truncateId(value: string) {
@@ -23,6 +24,7 @@ export function IdMetadataRow({
   value,
   align = "start",
   className = "",
+  inline = false,
 }: IdMetadataRowProps) {
   const resetTimerRef = useRef<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -31,6 +33,8 @@ export function IdMetadataRow({
     align === "end" ? " sm:items-end sm:text-right" : "";
   const rowClassName = className ? ` ${className}` : "";
   const displayValue = isHovered || isCopyRevealActive ? value : truncateId(value);
+  const inlineAlignmentClassName =
+    align === "end" ? " sm:justify-end sm:text-right" : "";
 
   useEffect(() => {
     return () => {
@@ -50,6 +54,31 @@ export function IdMetadataRow({
       setIsCopyRevealActive(false);
       resetTimerRef.current = null;
     }, 2000);
+  }
+
+  if (inline) {
+    return (
+      <div
+        className={`flex min-w-0 max-w-full flex-wrap items-center gap-2 text-xs${inlineAlignmentClassName}${rowClassName}`}
+      >
+        <span className="font-medium uppercase tracking-[0.18em] text-slate-400">
+          {label}
+        </span>
+        <code
+          className="max-w-full break-all font-mono text-xs text-slate-400 transition hover:text-slate-500"
+          title={value}
+          tabIndex={0}
+          aria-label={`${label}: ${value}`}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onFocus={() => setIsHovered(true)}
+          onBlur={() => setIsHovered(false)}
+        >
+          {displayValue}
+        </code>
+        <CopyTextButton text={value} onCopied={handleCopied} />
+      </div>
+    );
   }
 
   return (

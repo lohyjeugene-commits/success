@@ -44,16 +44,28 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </Link>
 
           <div className="rounded-3xl border border-slate-200 bg-white px-7 py-8 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              Public profile
-            </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-              Edit your member profile
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Your profile is publicly readable so other TouchGrass members can
-              see who they are meeting.
-            </p>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-3">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                  Public profile
+                </p>
+                <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
+                  Edit your member profile
+                </h1>
+                <p className="max-w-2xl text-sm leading-6 text-slate-600">
+                  Your profile is publicly readable so other TouchGrass members can
+                  see who they are meeting.
+                </p>
+              </div>
+
+              <IdMetadataRow
+                align="end"
+                className="lg:max-w-sm lg:pt-1"
+                inline
+                label="Auth user ID"
+                value={user.id}
+              />
+            </div>
           </div>
         </div>
 
@@ -74,42 +86,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             {error}
           </div>
         ) : null}
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Account metadata
-              </p>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                Your auth user ID
-              </h2>
-              <p className="max-w-2xl text-sm leading-6 text-slate-700">
-                This is the user ID to use in Supabase SQL when you want to
-                promote yourself, check memberships, or inspect your account
-                directly.
-              </p>
-            </div>
-
-            <IdMetadataRow
-              align="end"
-              className="lg:max-w-xs"
-              label="Auth user ID"
-              value={user.id}
-            />
-          </div>
-
-          <div className="mt-6">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Account email
-              </p>
-              <p className="mt-2 break-all text-sm text-slate-900">
-                {user.email ?? "No email available"}
-              </p>
-            </div>
-          </div>
-        </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
           <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">

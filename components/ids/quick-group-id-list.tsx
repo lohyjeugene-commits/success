@@ -36,18 +36,15 @@ export function QuickGroupIdList({
         </p>
       </div>
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-5 divide-y divide-slate-200">
         {groups.map((group) => (
-          <div
-            key={group.id}
-            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div key={group.id} className="py-3 first:pt-0 last:pb-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-slate-950">
                   {group.title}
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs text-slate-500">
                   {formatActivitySummary(
                     group.activity_category,
                     group.activity_type,
@@ -59,6 +56,7 @@ export function QuickGroupIdList({
               <IdMetadataRow
                 align="end"
                 className="sm:max-w-xs"
+                inline
                 label="Group ID"
                 value={group.id}
               />
