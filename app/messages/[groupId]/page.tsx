@@ -5,6 +5,7 @@ import { getGroupMessages, sendMessage } from "@/lib/supabase/messages";
 import { getGroupDetails } from "@/lib/supabase/group-details";
 import { MessageBubble } from "@/components/messages/message-bubble";
 import { MessageInput } from "@/components/messages/message-input";
+import { sendGroupMessage } from "./actions";
 
 type GroupChatPageProps = {
   params: Promise<{
@@ -94,7 +95,7 @@ export default async function GroupChatPage({ params }: GroupChatPageProps) {
           {/* Message Input */}
           <div className="border-t border-slate-200 bg-white px-6 py-4 sm:px-8">
             <div className="mx-auto w-full max-w-4xl">
-              <MessageInput groupId={groupId} />
+              <MessageInput groupId={groupId} sendMessageAction={sendGroupMessage} />
             </div>
           </div>
         </div>

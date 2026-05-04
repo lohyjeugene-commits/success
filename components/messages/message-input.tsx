@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { sendGroupMessage } from "./actions";
 
 type MessageInputProps = {
   groupId: string;
+  sendMessageAction: (formData: FormData) => Promise<{ error?: string; success?: boolean }>;
 };
 
-export function MessageInput({ groupId }: MessageInputProps) {
+export function MessageInput({ groupId, sendMessageAction }: MessageInputProps) {
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export function MessageInput({ groupId }: MessageInputProps) {
     formData.append("group_id", groupId);
     formData.append("content", content.trim());
 
-    const result = await sendGroupMessage(formData);
+    const result = await sendMessageAction(formData);
 
     if (result.error) {
       setError(result.error);
