@@ -24,14 +24,14 @@ export default async function GroupChatPage({ params }: GroupChatPageProps) {
   });
 
   // Check if user is a member of this group
-  const { group, error: groupError } = await getGroupDetails(groupId);
+  const { group, errorMessage, members } = await getGroupDetails(groupId);
 
-  if (groupError || !group) {
+  if (errorMessage || !group) {
     notFound();
   }
 
   // Verify user is a member
-  const isMember = group.members.some(member => member.user_id === user.id);
+  const isMember = members.some(member => member.user_id === user.id);
   if (!isMember) {
     notFound();
   }
@@ -54,7 +54,7 @@ export default async function GroupChatPage({ params }: GroupChatPageProps) {
               {group.title}
             </h1>
             <p className="text-sm text-slate-600">
-              {group.activity_type} • {group.area} • {group.members.length} members
+              {group.activity_type} • {group.area} • {members.length} members
             </p>
           </div>
         </div>
