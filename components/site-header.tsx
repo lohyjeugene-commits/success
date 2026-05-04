@@ -24,9 +24,14 @@ export async function SiteHeader() {
             Create
           </Link>
           {user && (
-            <Link href="/my-groups" className="transition hover:text-slate-950">
-              My Groups
-            </Link>
+            <>
+              <Link href="/messages" className="transition hover:text-slate-950">
+                Messages
+              </Link>
+              <Link href="/my-groups" className="transition hover:text-slate-950">
+                My Groups
+              </Link>
+            </>
           )}
           <Link href="/settings" className="transition hover:text-slate-950">
             Settings
@@ -61,9 +66,14 @@ export async function SiteHeader() {
             Create
           </Link>
           {user && (
-            <Link href="/my-groups" className="transition hover:text-slate-950">
-              My Groups
-            </Link>
+            <>
+              <Link href="/messages" className="transition hover:text-slate-950">
+                Messages
+              </Link>
+              <Link href="/my-groups" className="transition hover:text-slate-950">
+                My Groups
+              </Link>
+            </>
           )}
           <Link href="/settings" className="transition hover:text-slate-950">
             Settings
